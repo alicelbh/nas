@@ -1,0 +1,30 @@
+enable
+configure terminal
+ipv6 unicast-routing
+ip bgp-community new-format
+ipv6 router ospf 1
+router-id 3.0.0.2
+exit
+interface GigabitEthernet1/0
+ipv6 enable
+ipv6 address 2003:100:3:0::2/64
+ip ospf cost 100
+no shutdown
+ipv6 ospf 1 area 0
+exit
+interface loopback 0
+ipv6 enable
+ipv6 address 3::2/128
+no shutdown
+ipv6 ospf 1 area 0 
+exit
+router bgp 3
+no bgp default ipv4-unicast
+bgp router-id 3.0.0.2
+neighbor 3::1 remote-as 3
+neighbor 3::1 update-source Loopback0
+address-family ipv6 unicast
+neighbor 3::1 activate
+neighbor 3::1 send-community
+network 2003:100:3:0::/64
+exit

@@ -1,0 +1,98 @@
+enable
+configure terminal
+ipv6 unicast-routing
+ip bgp-community new-format
+ipv6 router ospf 1
+router-id 2.0.0.7
+exit
+interface GigabitEthernet2/0
+ipv6 enable
+ipv6 address 2002:100:2:7::2/64
+ip ospf cost 100
+no shutdown
+ipv6 ospf 1 area 0
+exit
+interface GigabitEthernet1/0
+ipv6 enable
+ipv6 address 2002:100:2:9::2/64
+ip ospf cost 100
+no shutdown
+ipv6 ospf 1 area 0
+exit
+interface loopback 0
+ipv6 enable
+ipv6 address 2::7/128
+no shutdown
+ipv6 ospf 1 area 0 
+exit
+interface FastEthernet0/0
+ipv6 enable
+ipv6 address 1000:2::2/64
+no shutdown
+exit
+router bgp 2
+no bgp default ipv4-unicast
+bgp router-id 2.0.0.7
+neighbor 2::1 remote-as 2
+neighbor 2::1 update-source Loopback0
+neighbor 2::2 remote-as 2
+neighbor 2::2 update-source Loopback0
+neighbor 2::3 remote-as 2
+neighbor 2::3 update-source Loopback0
+neighbor 2::4 remote-as 2
+neighbor 2::4 update-source Loopback0
+neighbor 2::5 remote-as 2
+neighbor 2::5 update-source Loopback0
+neighbor 2::6 remote-as 2
+neighbor 2::6 update-source Loopback0
+address-family ipv6 unicast
+neighbor 2::1 activate
+neighbor 2::1 send-community
+neighbor 2::2 activate
+neighbor 2::2 send-community
+neighbor 2::3 activate
+neighbor 2::3 send-community
+neighbor 2::4 activate
+neighbor 2::4 send-community
+neighbor 2::5 activate
+neighbor 2::5 send-community
+neighbor 2::6 activate
+neighbor 2::6 send-community
+network 2002:100:2:7::/64
+network 2002:100:2:9::/64
+exit
+neighbor 1000:2::1 remote-as 1
+address-family ipv6 unicast
+neighbor 1000:2::1 activate
+neighbor 1000:2::1 
+network 1000:2::/64
+exit
+end
+configure terminal
+ ipv6 access-list other_link_filter
+permit 1000:1::/64 any
+end
+configure terminal
+ip community-list standard provider_filter permit 2:10
+ip community-list standard peer_filter permit 2:20
+route-map non_client_out deny 5
+match ipv6 address other_link_filter
+exit
+route-map non_client_out deny 10
+match community provider_filter
+exit
+route-map non_client_out deny 20
+match community peer_filter
+exit
+route-map non_client_out permit 100
+exit
+route-map peer_handler permit 10
+set community 2:20
+set local-preference 200
+exit
+router bgp 2
+address-family ipv6 unicast
+neighbor 1000:2::1 route-map non_client_out out
+neighbor 1000:2::1 route-map peer_handler in
+end
+clear bgp ipv6 unicast *

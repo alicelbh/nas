@@ -1,0 +1,37 @@
+{
+  "AS1": 
+      {
+      "prefix" : "2001:100:",
+      "mask" : "64",
+      "asNumber": 1,
+      "routerType" : "c7200",
+      "protocol": "RIP",
+      "borderProtocol": "BGP",
+      "inMatrix":[[0,                         ["FastEthernet0/0", 0], ["GigabitEthernet1/0",0], 0, 0, 0, 0],
+                  [["GigabitEthernet1/0",0], 0,                       ["GigabitEthernet2/0", 0], ["FastEthernet0/0", 0], 0, 0, 0],
+                  [["GigabitEthernet1/0",0], ["GigabitEthernet2/0", 0],                       0, 0, ["FastEthernet0/0", 0], 0, 0],
+                  [0, ["GigabitEthernet2/0",0], 0, 0, ["GigabitEthernet3/0",0], ["FastEthernet0/0", 0],  ["GigabitEthernet1/0", 0]],
+                  [0, 0, ["GigabitEthernet2/0", 0], ["GigabitEthernet3/0", 0], 0, ["GigabitEthernet1/0", 0], ["FastEthernet0/0", 0]],
+                  [0, 0, 0, ["GigabitEthernet1/0", 0], ["GigabitEthernet2/0", 0], 0, 0],
+                  [0, 0, 0, ["GigabitEthernet2/0", 0], ["GigabitEthernet1/0", 0], 0, 0]],
+      "listPorts": [5001, 5002, 5003, 5004, 5005, 5006, 5007]
+      },"AS2": 
+      {
+      "prefix" : "2002:100:",
+      "mask" : "64",
+      "asNumber": 2,
+      "routerType" : "c7200",
+      "protocol": "OSPF",
+      "borderProtocol": "BGP",
+      "inMatrix":   [[0, ["FastEthernet0/0", 100], ["GigabitEthernet1/0", 100], 0, 0, 0, 0],
+                      [["GigabitEthernet1/0", 100], 0, ["GigabitEthernet2/0", 100], ["FastEthernet0/0", 100], 0, 0, 0],
+                      [["GigabitEthernet1/0", 100], ["GigabitEthernet2/0", 100], 0, 0, ["FastEthernet0/0", 100], 0, 0],
+                      [0, ["GigabitEthernet2/0", 100], 0, 0, ["GigabitEthernet3/0", 100], ["FastEthernet0/0", 100], ["GigabitEthernet1/0", 100]],
+                      [0, 0, ["GigabitEthernet2/0", 100], ["GigabitEthernet3/0", 100], 0, ["GigabitEthernet1/0", 100], ["FastEthernet0/0", 100]],
+                      [0, 0, 0, ["GigabitEthernet1/0", 100], ["GigabitEthernet2/0", 100], 0, 0],
+                      [0, 0, 0, ["GigabitEthernet2/0", 100], ["GigabitEthernet1/0", 100], 0, 0]],
+      "listPorts": [5014, 5012, 5013, 5010, 5011, 5008, 5009]
+      }, 
+      "adjAS": [[0, [5,"FastEthernet0/0", "1000:1:", 6, "FastEthernet0/0", "1000:2:"]],
+              [[5, "FastEthernet0/0", "1000:1:", 6, "FastEthernet0/0", "1000:2:"] , 0]]
+}

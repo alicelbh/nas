@@ -1,0 +1,61 @@
+{
+  "AS1": 
+    {
+      "prefix" : "2001:100:",
+      "mask" : "64",
+      "asNumber": 1,
+      "routerType" : "c7200",
+      "protocol": "RIP",
+      "borderProtocol": "BGP",
+      "inMatrix":[[0,                         ["FastEthernet0/0", 0], ["GigabitEthernet1/0",0], 0, 0, 0, 0],
+                  [["GigabitEthernet1/0",0], 0,                       ["GigabitEthernet2/0", 0], ["FastEthernet0/0", 0], 0, 0, 0],
+                  [["GigabitEthernet1/0",0], ["GigabitEthernet2/0", 0],                       0, 0, ["FastEthernet0/0", 0], 0, 0],
+                  [0, ["GigabitEthernet2/0",0], 0, 0, ["GigabitEthernet3/0",0], ["FastEthernet0/0", 0],  ["GigabitEthernet1/0", 0]],
+                  [0, 0, ["GigabitEthernet2/0", 0], ["GigabitEthernet3/0", 0], 0, ["GigabitEthernet1/0", 0], ["FastEthernet0/0", 0]],
+                  [0, 0, 0, ["GigabitEthernet1/0", 0], ["GigabitEthernet2/0", 0], 0, 0],
+                  [0, 0, 0, ["GigabitEthernet2/0", 0], ["GigabitEthernet1/0", 0], 0, 0]],
+      "listPorts": [5000, 5001, 5002, 5003, 5004, 5005, 5006]
+    },"AS2": 
+    {
+      "prefix" : "2002:100:",
+      "mask" : "64",
+      "asNumber": 2,
+      "routerType" : "c7200",
+      "protocol": "OSPF",
+      "borderProtocol": "BGP",
+      "inMatrix":   [[0, ["FastEthernet0/0", 100], ["GigabitEthernet1/0", 100], 0, 0, 0, 0],
+                    [["GigabitEthernet1/0", 100], 0, ["GigabitEthernet2/0", 100], ["FastEthernet0/0", 100], 0, 0, 0],
+                    [["GigabitEthernet1/0", 100], ["GigabitEthernet2/0", 100], 0, 0, ["FastEthernet0/0", 100], 0, 0],
+                    [0, ["GigabitEthernet2/0", 100], 0, 0, ["GigabitEthernet3/0", 100], ["FastEthernet0/0", 100], ["GigabitEthernet1/0", 100]],
+                    [0, 0, ["GigabitEthernet2/0", 100], ["GigabitEthernet3/0", 100], 0, ["GigabitEthernet1/0", 100], ["FastEthernet0/0", 100]],
+                    [0, 0, 0, ["GigabitEthernet1/0", 100], ["GigabitEthernet2/0", 100], 0, 0],
+                    [0, 0, 0, ["GigabitEthernet2/0", 100], ["GigabitEthernet1/0", 100], 0, 0]],
+      "listPorts": [5007, 5008, 5009, 5010, 5011, 5012, 5013]
+    },"AS3": 
+    {
+      "prefix" : "2003:100:",
+      "mask" : "64",
+      "asNumber": 3,
+      "routerType" : "c7200",
+      "protocol": "OSPF",
+      "borderProtocol": "BGP",
+      "inMatrix":   [[0, ["GigabitEthernet1/0", 100]],
+                    [["GigabitEthernet1/0", 100], 0]],
+      "listPorts": [5016, 5017]
+    }, "AS4": 
+    {
+      "prefix" : "2004:100:",
+      "mask" : "64",
+      "asNumber": 4,
+      "routerType" : "c7200",
+      "protocol": "OSPF",
+      "borderProtocol": "BGP",
+      "inMatrix":   [[0, ["GigabitEthernet1/0", 100]],
+                    [["GigabitEthernet1/0", 100], 0]],
+      "listPorts": [5014, 5015]
+    }, 
+    "adjAS": [[0, [5,"FastEthernet0/0", "1000:1:", 6, "FastEthernet0/0", "1000:2:", "peer"], 0, 0],
+              [[5, "FastEthernet0/0", "1000:1:", 6, "FastEthernet0/0", "1000:2:", "peer"] ,  0, [2, "GigabitEthernet3/0", "1000:3:", "client"], [1, "GigabitEthernet3/0", "1000:4:", "provider"]],
+              [0, [0, "GigabitEthernet3/0", "1000:3:", "provider"], 0, 0],
+              [0, [0, "GigabitEthernet3/0", "1000:4:","client"], 0, 0]]
+}

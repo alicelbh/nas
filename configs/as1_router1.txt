@@ -1,0 +1,55 @@
+enable
+configure terminal
+ipv6 unicast-routing
+ip bgp-community new-format
+ipv6 router rip 11
+exit
+interface FastEthernet0/0
+ipv6 enable
+ipv6 address 2001:100:1:0::1/64
+no shutdown
+ipv6 rip 11 enable 
+exit
+interface GigabitEthernet1/0
+ipv6 enable
+ipv6 address 2001:100:1:1::1/64
+no shutdown
+ipv6 rip 11 enable 
+exit
+interface loopback 0
+ipv6 enable
+ipv6 address 1::1/128
+no shutdown
+ipv6 rip 11 enable 
+exit
+router bgp 1
+no bgp default ipv4-unicast
+bgp router-id 1.0.0.1
+neighbor 1::2 remote-as 1
+neighbor 1::2 update-source Loopback0
+neighbor 1::3 remote-as 1
+neighbor 1::3 update-source Loopback0
+neighbor 1::4 remote-as 1
+neighbor 1::4 update-source Loopback0
+neighbor 1::5 remote-as 1
+neighbor 1::5 update-source Loopback0
+neighbor 1::6 remote-as 1
+neighbor 1::6 update-source Loopback0
+neighbor 1::7 remote-as 1
+neighbor 1::7 update-source Loopback0
+address-family ipv6 unicast
+neighbor 1::2 activate
+neighbor 1::2 send-community
+neighbor 1::3 activate
+neighbor 1::3 send-community
+neighbor 1::4 activate
+neighbor 1::4 send-community
+neighbor 1::5 activate
+neighbor 1::5 send-community
+neighbor 1::6 activate
+neighbor 1::6 send-community
+neighbor 1::7 activate
+neighbor 1::7 send-community
+network 2001:100:1:0::/64
+network 2001:100:1:1::/64
+exit

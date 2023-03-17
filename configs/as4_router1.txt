@@ -1,0 +1,52 @@
+enable
+configure terminal
+ipv6 unicast-routing
+ip bgp-community new-format
+ipv6 router ospf 1
+router-id 4.0.0.1
+exit
+interface GigabitEthernet1/0
+ipv6 enable
+ipv6 address 2004:100:4:0::1/64
+ip ospf cost 100
+no shutdown
+ipv6 ospf 1 area 0
+exit
+interface loopback 0
+ipv6 enable
+ipv6 address 4::1/128
+no shutdown
+ipv6 ospf 1 area 0 
+exit
+interface GigabitEthernet3/0
+ipv6 enable
+ipv6 address 1000:4::4/64
+no shutdown
+exit
+router bgp 4
+no bgp default ipv4-unicast
+bgp router-id 4.0.0.1
+neighbor 4::2 remote-as 4
+neighbor 4::2 update-source Loopback0
+address-family ipv6 unicast
+neighbor 4::2 activate
+neighbor 4::2 send-community
+network 2004:100:4:0::/64
+exit
+neighbor 1000:4::2 remote-as 2
+address-family ipv6 unicast
+neighbor 1000:4::2 activate
+neighbor 1000:4::2 
+network 1000:4::/64
+exit
+end
+configure terminal
+route-map client_handler permit 10
+set community 4:37
+set local-preference 300
+exit
+router bgp 4
+address-family ipv6 unicast
+neighbor 1000:4::2 route-map client_handler in
+end
+clear bgp ipv6 unicast *
