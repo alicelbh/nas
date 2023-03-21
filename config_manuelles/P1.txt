@@ -1,0 +1,29 @@
+P1:
+
+configure terminal
+router ospf 1
+router-id 1.0.0.2
+exit
+mpls ip
+interface FastEthernet0/0
+no shutdown
+ip address 10.10.10.2 255.255.255.252
+ip ospf 1 area 0
+mpls ip
+exit
+interface loopback0
+ip address 1.0.0.2 255.255.255.255
+no shutdown
+ip ospf 1 area 0
+interface GigabitEthernet1/0
+no shutdown
+ip address 10.10.11.1 255.255.255.252
+ip ospf 1 area 0
+mpls ip
+exit
+router ospf 1
+mpls ldp autoconfig
+end
+
+
+
