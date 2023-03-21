@@ -56,10 +56,16 @@ For each PE-CE interface on PEs:
 ### Configure eBGP as the PE-CE Routing Protocol
 Config on the CE:
 ```
-#TODO
+(config)# router bgp <as>
+└ (config-rtr)# neighbor ... remote-as ...
+└ (config-rtr)# address-family ipv4 unicast
+  └ (config-rtr-af)# neighbor ... activate
 ```
 
 Config on the PE:
 ```
-#TODO
+(config)# router bgp <as>
+└ (config-rtr)# neighbor ... remote-as ...
+└ (config-rtr)# address-family ipv4 vrf <VRF name>
+  └ (config-rtr-af)# neighbor ... activate
 ```
