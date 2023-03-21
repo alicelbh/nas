@@ -7,6 +7,9 @@ import io
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
 
+listeDuFutur = []
+#todo : faire l'incrément correct
+
 def configureInsideProtocols(asName, uB, lAS):
     listR = [] #list of routers in the AS
     listC = [] #list of the commands for each router in the AS
@@ -15,14 +18,17 @@ def configureInsideProtocols(asName, uB, lAS):
     asMat = net[asName]['inMatrix']
     asNb = str(net[asName]['asNumber']) 
     asProt = net[asName]['protocol']
-    asPrefix = str(net[asName]['prefix'])
+    #asPrefix = str(net[asName]['prefix'])
     matLen = len(net[asName]['inMatrix'])
     linkNumber = 0
-
+    currentIp = 0
+    increment = 2**(32 - int(net[asName]['mask']))
+    #print(increment)
+    asIndex = 0
     for i in range (0, matLen): #for each router
         routerName = asNb + str(i+1)
         routerID = asNb + '.0.0.' + str(i+1)
-        loopBackAddress = asNb + "::" + str(i+1)
+        loopBackAddress = str(i+1) + "." + str(i+1) + "."+ str(i+1) + "."+  str(i+1)
         routerDefinition = {
             "routerName" : routerName,
             "routerID" : routerID,
@@ -35,14 +41,17 @@ def configureInsideProtocols(asName, uB, lAS):
         textBorder = ""
 
         #configure the interfaces of the border routers in their small subnets
-        textBorder+= ipForBorderRouters(borderMat, asNb, asMask, uB, i)
+        textBorder+= ipForBorderRouters(borderMat, asNb, asMask, uB, i, asIndex)
 
         #configure the interfaces of the rest of the routers
         for j in range(i, matLen): #we only go through half of the matrix since we can get the two routers on a link by getting asMat[i][j] and asMat[j][i] 
             if asMat[i][j] != 0:
-                subNetAddress = asPrefix +  asNb + ":" + str(linkNumber) + "::"
-                inAddress = asPrefix +  asNb + ":" + str(linkNumber) + "::" + "1"
-                inAddressNeighbor = asPrefix +  asNb + ":" + str(linkNumber) + "::" + "2"
+                subNetAddress = "0." +  asNb + "." + asNb + "." + str(currentIp)
+                inAddress = "0." +  asNb + "." + asNb + "." + str((currentIp+1))
+                inAddressNeighbor = "0." +  asNb + "." + asNb + "." + str((currentIp+2))
+                # print(subNetAddress)
+                # print(inAddress)
+                # print(inAddressNeighbor)
 
                 asMatDic = {
                     "interface" : asMat[i][j][0],
@@ -61,6 +70,10 @@ def configureInsideProtocols(asName, uB, lAS):
                 asMat[i][j] = asMatDic
                 asMat[j][i] = asMatDicNeighbor
                 linkNumber += 1
+                currentIp += increment
+                if(currentIp>247):
+                    print("aled ton adresse elle est trop fat")
+                    sys.exit()
 
 
         #generate the written configurations
@@ -70,7 +83,7 @@ def configureInsideProtocols(asName, uB, lAS):
             for a in range (0, matLen): #configure all of the physical interfaces
                 if asMat[i][a] !=0:
                     text += "interface " + asMat[i][a]["interface"] + "\nipv6 enable" + "\nipv6 address " + asMat[i][a]["@ip"] + asMask + "\nno shutdown\nipv6 rip " + routerName + " enable \nexit\n"
-            text+= "interface loopback 0\nipv6 enable\nipv6 address " + loopBackAddress + "/128" + "\nno shutdown\nipv6 rip " + routerName + " enable \nexit\n"
+            text+= "interface loopback 0\nipv6 enable\nipv6 address " + loopBackAddress + "/32" + "\nno shutdown\nipv6 rip " + routerName + " enable \nexit\n"
             text+= textBorder
             if borderAsDic != {}:
                 text+= ""
@@ -80,7 +93,7 @@ def configureInsideProtocols(asName, uB, lAS):
             for a in range (0, matLen): #configure all of the physical interfaces
                 if asMat[i][a] !=0:
                     text+= "interface " + asMat[i][a]["interface"] + "\nipv6 enable" + "\nipv6 address " + asMat[i][a]["@ip"] + asMask + "\nip ospf cost " + str(asMat[i][a]["metric"])+"\nno shutdown\nipv6 ospf 1 area 0\nexit\n"
-            text+= "interface loopback 0\nipv6 enable\nipv6 address " + loopBackAddress + "/128" + "\nno shutdown\nipv6 ospf 1 area 0 \nexit\n"
+            text+= "interface loopback 0\nipv6 enable\nipv6 address " + loopBackAddress + "/32" + "\nno shutdown\nipv6 ospf 1 area 0 \nexit\n"
             text+= textBorder
 
         listC.append(text) #add command to list
@@ -93,25 +106,43 @@ def configureInsideProtocols(asName, uB, lAS):
 
     lAS.append(asSpecifications)
 
-def ipForBorderRouters(borderMat, asNb, asMask, uB, i):
+def ipForBorderRouters(borderMat, asNb, asMask, uB, i , index):
     t = ""
-    for b in range (0, len(borderMat)):
-                if borderMat[int(asNb)-1][b] != 0: #check if there exist a connection betwteen our AS and another one
-                    l = []
-                    for z in range (0,len(borderMat[int(asNb)-1][b]), 3): #if there exists one, check if the number of the router i is in the border matrix
-                        if borderMat[int(asNb)-1][b][z] == i: 
-                            borderAsDic = {
-                                "router" : i,
-                                "interface" : borderMat[int(asNb)-1][b][z+1],
-                                "@ip" : str(borderMat[int(asNb)-1][b][z+2])  + ":" + asNb,
-                                "@subnet" :  borderMat[int(asNb)-1][b][z+2] + ":" + asMask
-                            }
-                            uB[int(asNb)-1][b].append(borderAsDic)
-                            t += "interface " + borderAsDic["interface"] + "\nipv6 enable" + "\nipv6 address " + borderAsDic["@ip"] + asMask + "\nno shutdown\nexit\n" 
+    currentIp = 0
+    print("aaaaaas " + str(asNb))
+    print("je suis i " + str(i))
+    for b in range (index, len(borderMat)):
+        print("je suis index " + str(index))
+        if borderMat[int(asNb)-1][b] != 0: #check if there exist a connection betwteen our AS and another one
+            for z in range (0,len(borderMat[int(asNb)-1][b]), 3): #if there exists one, check if the number of the router i is in the border matrix
+                if borderMat[int(asNb)-1][b][z] == i: 
+                    borderAsDic = {
+                        "router" : i,
+                        "interface" : borderMat[int(asNb)-1][b][z+1],
+                        "@ip" : str(borderMat[int(asNb)-1][b][z+2])+ str(currentIp+1),
+                        "@subnet" :  borderMat[int(asNb)-1][b][z+2] + str(currentIp) + asMask
+                    }
+                    borderNeighborAsDic = {
+                        "router" : borderMat[b][int(asNb)-1][z],
+                        "interface" : borderMat[b][int(asNb)-1][z+1],
+                        "@ip" : str(borderMat[b][int(asNb)-1][z+2]) + str(currentIp+2),
+                        "@subnet" :  borderMat[b][int(asNb)-1][z+2] + str(currentIp) + asMask
+                    }
+                  
+                    if borderAsDic["@subnet"] not in listeDuFutur:
+                        print(borderAsDic)
+                        print(borderNeighborAsDic)
+                        uB[int(asNb)-1][b].append(borderAsDic)
+                        uB[b][int(asNb)-1].append(borderNeighborAsDic)
+                    listeDuFutur.append(borderAsDic["@subnet"])
+                    t += "interface " + borderAsDic["interface"] + "\nipv6 enable" + "\nipv6 address " + borderAsDic["@ip"] + asMask + "\nno shutdown\nexit\n" 
+        index +=1
+    #print(listeDuFutur)
     return t
 
 
 def configureBorderProtocol(lAS, uB):
+    #print(uB)
     adjAS = net['adjAS']
     for n in range(0, len(lAS)):
         mask = "/" + str(net['AS' + str((n+1))]['mask'])
