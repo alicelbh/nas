@@ -4,6 +4,8 @@ import copy
 import time
 import telnetlib
 import io
+import os
+import re
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
 
@@ -233,6 +235,23 @@ def generateTextFiles(lAS):
             f = open("configs/as"+ str(i+1) + "_router" + str(r+1) +".txt", "w")
             f.write(lAS[i]['config'][r])
 
+def generateBackupFiles(lAS):
+    for i in range (0, len(lAS)):
+        for r in range (0, len(lAS[i]['config'])):
+            f = open(".old_configs/as"+ str(i+1) + "_router" + str(r+1) +".txt", "w")
+            f.write(lAS[i]['config'][r])
+
+def compareOldFiles(lAS):
+    for path in os.listdir(".old_configs/"):
+        with open(".old_configs/" + path, 'r') as file:
+            old_data = file.read()
+            (asN, routerN) = re.findall("as([0-9]+)_router([0-9]+)", path)[0]
+            new_data = lAS[int(asN) - 1]['config'][int(routerN) - 1]
+            print(new_data == old_data)
+            # TODO: append 'no' before missing statements
+            # it may not be a good idea to write just the statements that are new, because we lose all hierarchical aspect
+
+
 def button1_clicked(lAS, uB):
    #implement the inner protocols of each AS
     for key in net: #for each 
@@ -241,9 +260,13 @@ def button1_clicked(lAS, uB):
 
     #configureBorderProtocol(lAS, uB) #implement the border protocols between all the connectes AS
 
+    compareOldFiles(lAS)
+
     generateTextFiles(lAS) #generate writter config
     
     #telnetHandler(lAS) #send the config to telnet
+
+    generateBackupFiles(lAS) # generate backup files for later comparison
 
     print(uB)
 
