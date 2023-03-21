@@ -10,11 +10,21 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
 listeDuFutur = []
 #todo : faire l'incrément correct
 
+def formatMask(mask_decimal):
+    mask_binary = '1' * mask_decimal + '0' * (32 - mask_decimal)  # convert decimal mask to binary
+
+    # convert binary mask to dotted decimal format
+    mask_dotted_decimal = ".".join([str(int(mask_binary[i:i+8], 2)) for i in range(0, 32, 8)])
+
+    print("Decimal IPv4 mask:", mask_decimal)
+    print("Dotted decimal mask:", mask_dotted_decimal)
+    return mask_dotted_decimal
+
 def configureInsideProtocols(asName, uB, lAS):
     listR = [] #list of routers in the AS
     listC = [] #list of the commands for each router in the AS
 
-    asMask = "/" +net[asName]['mask']
+    asMask = " " + formatMask(int(net[asName]['mask']))
     asMat = net[asName]['inMatrix']
     asNb = str(net[asName]['asNumber']) 
     asProt = net[asName]['protocol']
@@ -46,9 +56,9 @@ def configureInsideProtocols(asName, uB, lAS):
         #configure the interfaces of the rest of the routers
         for j in range(i, matLen): #we only go through half of the matrix since we can get the two routers on a link by getting asMat[i][j] and asMat[j][i] 
             if asMat[i][j] != 0:
-                subNetAddress = "0." +  asNb + "." + asNb + "." + str(currentIp)
-                inAddress = "0." +  asNb + "." + asNb + "." + str((currentIp+1))
-                inAddressNeighbor = "0." +  asNb + "." + asNb + "." + str((currentIp+2))
+                subNetAddress = asNb + "0."+ asNb + "." + str(currentIp)
+                inAddress = asNb +  ".0." + asNb + "." + str((currentIp+1))
+                inAddressNeighbor = asNb +  ".0." + asNb + "." + str((currentIp+2))
                 # print(subNetAddress)
                 # print(inAddress)
                 # print(inAddressNeighbor)
@@ -77,23 +87,23 @@ def configureInsideProtocols(asName, uB, lAS):
 
 
         #generate the written configurations
-        text = "enable\nconfigure terminal\nipv6 unicast-routing\nip bgp-community new-format\n"
+        text = "enable\nconfigure terminal\n"
         if(asProt == 'RIP'):
-            text += 'ipv6 router rip ' + routerName + "\nexit\n"
+            text += 'ip router rip ' + routerName + "\nexit\n"
             for a in range (0, matLen): #configure all of the physical interfaces
                 if asMat[i][a] !=0:
-                    text += "interface " + asMat[i][a]["interface"] + "\nipv6 enable" + "\nipv6 address " + asMat[i][a]["@ip"] + asMask + "\nno shutdown\nipv6 rip " + routerName + " enable \nexit\n"
-            text+= "interface loopback 0\nipv6 enable\nipv6 address " + loopBackAddress + "/32" + "\nno shutdown\nipv6 rip " + routerName + " enable \nexit\n"
+                    text += "interface " + asMat[i][a]["interface"] + "\nip address " + asMat[i][a]["@ip"] + asMask + "\nno shutdown\nip rip " + routerName + " enable \nexit\n"
+            text+= "interface loopback 0\nip address " + loopBackAddress + " 255.255.255.255" + "\nno shutdown\nip rip " + routerName + " enable \nexit\n"
             text+= textBorder
             if borderAsDic != {}:
                 text+= ""
 
         elif(asProt == 'OSPF'):
-            text += 'ipv6 router ospf 1\nrouter-id ' + routerID + "\nexit\n"
+            text += 'router ospf 1\nrouter-id ' + routerID + "\nexit\n"
             for a in range (0, matLen): #configure all of the physical interfaces
                 if asMat[i][a] !=0:
-                    text+= "interface " + asMat[i][a]["interface"] + "\nipv6 enable" + "\nipv6 address " + asMat[i][a]["@ip"] + asMask + "\nip ospf cost " + str(asMat[i][a]["metric"])+"\nno shutdown\nipv6 ospf 1 area 0\nexit\n"
-            text+= "interface loopback 0\nipv6 enable\nipv6 address " + loopBackAddress + "/32" + "\nno shutdown\nipv6 ospf 1 area 0 \nexit\n"
+                    text+= "interface " + asMat[i][a]["interface"] + "\nip address " + asMat[i][a]["@ip"] + asMask + "\nip ospf cost " + str(asMat[i][a]["metric"])+"\nno shutdown\nip ospf 1 area 0\nexit\n"
+            text+= "interface loopback 0\nip address " + loopBackAddress + " 255.255.255.255" + "\nno shutdown\nip ospf 1 area 0 \nexit\n"
             text+= textBorder
 
         listC.append(text) #add command to list
@@ -135,7 +145,7 @@ def ipForBorderRouters(borderMat, asNb, asMask, uB, i , index):
                         uB[int(asNb)-1][b].append(borderAsDic)
                         uB[b][int(asNb)-1].append(borderNeighborAsDic)
                     listeDuFutur.append(borderAsDic["@subnet"])
-                    t += "interface " + borderAsDic["interface"] + "\nipv6 enable" + "\nipv6 address " + borderAsDic["@ip"] + asMask + "\nno shutdown\nexit\n" 
+                    t += "interface " + borderAsDic["interface"] + "\nip address " + borderAsDic["@ip"] + asMask + "\nno shutdown\nexit\n" 
         index +=1
     #print(listeDuFutur)
     return t
@@ -148,11 +158,11 @@ def configureBorderProtocol(lAS, uB):
         mask = "/" + str(net['AS' + str((n+1))]['mask'])
         ####### configure iBGP
         for i in range(0, len(lAS[n]["routers"])):
-            lAS[n]["config"][i] += "router bgp " + str(n+1) +"\nno bgp default ipv4-unicast\nbgp router-id " + lAS[n]["routers"][i]["routerID"] + "\n"
+            lAS[n]["config"][i] += "router bgp " + str(n+1) +"\nbgp router-id " + lAS[n]["routers"][i]["routerID"] + "\n"
             for j in range(0, len(lAS[n]["routers"])):
                 if i != j:
                     lAS[n]["config"][i] += "neighbor " + lAS[n]["routers"][j]["loopBackAddress"] +" remote-as " +str(n+1)+"\nneighbor " + lAS[n]["routers"][j]["loopBackAddress"] +" update-source Loopback0\n"
-            lAS[n]["config"][i] += "address-family ipv6 unicast\n"
+            lAS[n]["config"][i] += "address-family ipv4 unicast\n"
             for j in range(0, len(lAS[n]["routers"])):
                 if i!=j:
                     lAS[n]["config"][i] += "neighbor " + lAS[n]["routers"][j]["loopBackAddress"] +" activate\nneighbor " + listAS[n]["routers"][j]["loopBackAddress"] +" send-community\n"
@@ -166,9 +176,10 @@ def configureBorderProtocol(lAS, uB):
                 for y in range(0, len(uB[i][n])):
                     localRouter = uB[n][i][y]['router'] #get number of the border router in our AS 
                     neighborAddress =  uB[i][n][y]['@ip']#get the ip of the border router we are connected to 
-                    lAS[n]["config"][localRouter] += "neighbor " + neighborAddress + " remote-as " + str(i+1) + "\naddress-family ipv6 unicast\nneighbor " + neighborAddress + " activate\nneighbor " + neighborAddress + " \nnetwork " + uB[i][n][y]['@subnet'] + "\nexit\n"
+                    lAS[n]["config"][localRouter] += "neighbor " + neighborAddress + " remote-as " + str(i+1) + "\naddress-family ipv4 unicast\nneighbor " + neighborAddress + " activate\nneighbor " + neighborAddress + " \nnetwork " + uB[i][n][y]['@subnet'] + "\nexit\n"
 
-    routemap_configuration(lAS, uB, adjAS)
+    #routemap_configuration(lAS, uB, adjAS)
+
 def routemap_configuration(lAS, uB, adjAS):
     for i in range(0, len(adjAS)):
         for j in range(0, len(adjAS[i])):
@@ -179,8 +190,8 @@ def routemap_configuration(lAS, uB, adjAS):
                     #set up access-lists
                     alist = ""
                     if(len(uB[j][i]) > 1):
-                        lAS[i]["config"][router] += "end\nconfigure terminal\n ipv6 access-list other_link_filter\n"
-                        alist = "route-map non_client_out deny 5\nmatch ipv6 address other_link_filter\nexit\n"
+                        lAS[i]["config"][router] += "end\nconfigure terminal\n ip access-list other_link_filter\n"
+                        alist = "route-map non_client_out deny 5\nmatch ip address other_link_filter\nexit\n"
                     for t in range(0,len(uB[j][i])):
                         if (t != k):
                             lAS[i]["config"][router] += "permit " + uB[j][i][t]['@subnet'] + " any\n"
@@ -189,12 +200,12 @@ def routemap_configuration(lAS, uB, adjAS):
                     rship = adjAS[i][j][l]
                     match rship:
                         case "peer":
-                            lAS[i]["config"][router] += "end\nconfigure terminal\nip community-list standard provider_filter permit " + str(i+1)+":10\nip community-list standard peer_filter permit " + str(i+1)+":20\n"+alist+"route-map non_client_out deny 10\nmatch community provider_filter\nexit\nroute-map non_client_out deny 20\nmatch community peer_filter\nexit\nroute-map non_client_out permit 100\nexit\nroute-map peer_handler permit 10\nset community "+str(i+1)+":20\nset local-preference 200\nexit\nrouter bgp " + str(i+1) + "\naddress-family ipv6 unicast\nneighbor " + address + " route-map non_client_out out\nneighbor " + address + " route-map peer_handler in\nend\n"
+                            lAS[i]["config"][router] += "end\nconfigure terminal\nip community-list standard provider_filter permit " + str(i+1)+":10\nip community-list standard peer_filter permit " + str(i+1)+":20\n"+alist+"route-map non_client_out deny 10\nmatch community provider_filter\nexit\nroute-map non_client_out deny 20\nmatch community peer_filter\nexit\nroute-map non_client_out permit 100\nexit\nroute-map peer_handler permit 10\nset community "+str(i+1)+":20\nset local-preference 200\nexit\nrouter bgp " + str(i+1) + "\naddress-family ipv4 unicast\nneighbor " + address + " route-map non_client_out out\nneighbor " + address + " route-map peer_handler in\nend\n"
                         case "provider":
-                            lAS[i]["config"][router] += "end\nconfigure terminal\nip community-list standard provider_filter permit " + str(i+1)+":10\nip community-list standard peer_filter permit " + str(i+1)+":20\n"+alist+"route-map non_client_out deny 10\nmatch community provider_filter\nexit\nroute-map non_client_out deny 20\nmatch community peer_filter\nexit\nroute-map non_client_out permit 100\nexit\nroute-map provider_handler permit 10\nset community "+str(i+1)+":10\nset local-preference 50\nexit\nrouter bgp " + str(i+1) + "\naddress-family ipv6 unicast\nneighbor " + address + " route-map non_client_out out\nneighbor " + address + " route-map provider_handler in\nend\n"
+                            lAS[i]["config"][router] += "end\nconfigure terminal\nip community-list standard provider_filter permit " + str(i+1)+":10\nip community-list standard peer_filter permit " + str(i+1)+":20\n"+alist+"route-map non_client_out deny 10\nmatch community provider_filter\nexit\nroute-map non_client_out deny 20\nmatch community peer_filter\nexit\nroute-map non_client_out permit 100\nexit\nroute-map provider_handler permit 10\nset community "+str(i+1)+":10\nset local-preference 50\nexit\nrouter bgp " + str(i+1) + "\naddress-family ipv4 unicast\nneighbor " + address + " route-map non_client_out out\nneighbor " + address + " route-map provider_handler in\nend\n"
                         case "client":
-                            lAS[i]["config"][router] += "end\nconfigure terminal\nroute-map client_handler permit 10\nset community " + str(i+1)+":37\nset local-preference 300\nexit\nrouter bgp " + str(i+1) + "\naddress-family ipv6 unicast\nneighbor " + address + " route-map client_handler in\nend\n"
-                    lAS[i]["config"][router] += "clear bgp ipv6 unicast *"
+                            lAS[i]["config"][router] += "end\nconfigure terminal\nroute-map client_handler permit 10\nset community " + str(i+1)+":37\nset local-preference 300\nexit\nrouter bgp " + str(i+1) + "\naddress-family ipv4 unicast\nneighbor " + address + " route-map client_handler in\nend\n"
+                    lAS[i]["config"][router] += "clear bgp ip unicast *"
 
 def telnetHandler(lAS):
     for i in range(len(net.keys()) - 1):
@@ -228,7 +239,7 @@ def button1_clicked(lAS, uB):
         if (key!="adjAS"):
             configureInsideProtocols(key, uB, lAS)
 
-    configureBorderProtocol(lAS, uB) #implement the border protocols between all the connectes AS
+    #configureBorderProtocol(lAS, uB) #implement the border protocols between all the connectes AS
 
     generateTextFiles(lAS) #generate writter config
     
