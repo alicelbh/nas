@@ -13,7 +13,10 @@
                   [0, ["GigabitEthernet1/0", 10], 0, ["FastEthernet0/0", 10]],
                   [0, 0, ["FastEthernet0/0", 10], 0]],
       "listPorts": [5000, 5001, 5002, 5003],
-      "VPNs" : [[1,4]]
+      "PE" : [
+                [1, [["GigabitEthernet2/0", "Client_A"], ["GigabitEthernet3/0", "Client_B"]]],
+                [4, [["GigabitEthernet2/0", "Client_A"], ["GigabitEthernet3/0", "Client_B"]]]
+             ]
     },
     "adjAS":[[0]]
 }
