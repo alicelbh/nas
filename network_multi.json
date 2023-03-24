@@ -16,7 +16,8 @@
       "PE" : [
                 [1, [["GigabitEthernet2/0", "Client_A"], ["GigabitEthernet3/0", "Client_B"]]],
                 [4, [["GigabitEthernet2/0", "Client_A"], ["GigabitEthernet3/0", "Client_B"]]]
-             ]
+             ],
+      "RR": 3
     },
     "adjAS":[[0]]
 }
