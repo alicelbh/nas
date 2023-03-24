@@ -150,20 +150,62 @@ def ipForBorderRouters(borderMat, asNb, asMask, uB, i , index):
     #print(listeDuFutur)
     return t
 
-def configurePE(lAS):
+def configurePEiBGP(lAS):
     text = ""
     for n in range (0, len(lAS)):
         asName = "AS" + str(n+1)
-        vpn = net[asName]["VPNs"]
-        for i in range (0, len(vpn)):
-            lAS[n]["config"][i]+= "router bgp " + str(n+1) + "\n"
-            for a in range (0,2):
-                print("dudu")
-                neighbor = str(lAS[n]["routers"][int(vpn[i][int(not a)])-1]["loopBackAddress"])
-                lAS[n]["config"][int(vpn[i][a])-1]+= "neighbor " + neighbor + " remote-as " + str(n+1) + "\n"
-                lAS[n]["config"][int(vpn[i][a])-1]+= "neighbor " + neighbor + " update-source Loopback0\naddress-family vpnv4\n"
-                lAS[n]["config"][int(vpn[i][a])-1]+= "neighbor " + neighbor + " activate\n" + "neighbor " + neighbor + " send-community both"
-    
+        rr = net[asName]["RR"] - 1
+        pe_list = net[asName]["PE"]
+        for i in range (0, len(pe_list)):
+            pe = pe_list[i][0] -1
+            lAS[n]["config"][pe]+= "router bgp " + str(n+1) + "\n"
+            print("dudu")
+            neighbor = lAS[n]["routers"][rr]["loopBackAddress"]
+            source = lAS[n]["routers"][pe]["loopBackAddress"]
+            print(neighbor)
+            #config des PE
+            lAS[n]["config"][pe]+= "neighbor " + neighbor + " remote-as " + str(n+1) + "\n"
+            lAS[n]["config"][pe]+= "neighbor " + neighbor + " update-source Loopback0\naddress-family vpnv4\n"
+            lAS[n]["config"][pe]+= "neighbor " + neighbor + " activate\n" + "neighbor " + neighbor + " send-community both\nexit-address-family\n"
+            #config du RR
+            lAS[n]["config"][rr]+= "neighbor " + source + " remote-as " + str(n+1) + "\n"
+            lAS[n]["config"][rr]+= "neighbor " + source + " update-source Loopback0\naddress-family vpnv4\n"
+            lAS[n]["config"][rr]+= "neighbor " + source + " activate\n" + "neighbor " + source + " send-community both\n"
+            lAS[n]["config"][rr]+= "neighbor " + source + "route-reflector-client\nexit-address-family\n"
+    configureVRF(lAS)
+
+def configureVRF(lAS):
+    for n in range (0, len(lAS)):
+        #config VRFs
+        asName = "AS" + str(n+1)
+        pe = net[asName]["PE"]
+        for a in range (0, len(pe)):
+            for b in range (0, len(pe[1])):
+                interface_client = pe[a][1][b][0]
+                nom_client = pe[a][1][b][1]
+                id_client = pe[a][1][b][2]
+                ip_pe = pe[a][1][b][3].split("/")[0]
+                ip_client = pe[a][1][b][4]
+                as_client = pe[a][1][b][5]
+                mask = formatMask(int(pe[a][1][b][3].split("/")[1]))
+                text = "\nend\nconfigure terminal"
+                text+= "\nvrf definition " + nom_client 
+                text += "\nrd " + id_client 
+                text += "\nroute-target export " +  id_client + "0"
+                text += "\nroute-target import " + id_client + "0"
+                text+= "\nexit"
+                text+= "\ninterface " + interface_client + "\nno shutdown"
+                text+= "\nvrf forwarding " + nom_client
+                text+= "\nip address " + ip_pe + " " + mask
+                text+= "\nexit"
+                text+= "\nrouter bgp " + str(a+1)
+                text+= "\naddress-family ipv4 vrf " + nom_client
+                text+= "\nneighbor " + ip_client + " remote-as " + str(as_client)
+                text+= "\nneighbor " + ip_client + " activate"
+                text+= "\nexit-address-family"
+
+                lAS[n]["config"][int(pe[a][0])-1]+= text #add new commands to router config
+
 
 def configureBorderProtocol(lAS, uB):
     #print(uB)
@@ -254,12 +296,13 @@ def button1_clicked(lAS, uB):
             configureInsideProtocols(key, uB, lAS)
 
     #configureBorderProtocol(lAS, uB) #implement the border protocols between all the connectes AS
-    configurePE(lAS)
+    configurePEiBGP(lAS)
     generateTextFiles(lAS) #generate writter config
     
     #telnetHandler(lAS) #send the config to telnet
 
     print(uB)
+    print(lAS[0]["routers"][2]["loopBackAddress"])
 
 def window(lAS, uB):
     app = QApplication(sys.argv)
