@@ -242,14 +242,39 @@ def generateBackupFiles(lAS):
             f.write(lAS[i]['config'][r])
 
 def compareOldFiles(lAS):
+    lAS_before_modif = copy.deepcopy(lAS)
+
     for path in os.listdir(".old_configs/"):
         with open(".old_configs/" + path, 'r') as file:
-            old_data = file.read()
+            old_data = file.read().split('\n')
             (asN, routerN) = re.findall("as([0-9]+)_router([0-9]+)", path)[0]
-            new_data = lAS[int(asN) - 1]['config'][int(routerN) - 1]
-            print(new_data == old_data)
+            new_data = lAS[int(asN) - 1]['config'][int(routerN) - 1].split('\n')
+
+            section_names = ['interface', 'router', 'address-family', 'configure', 'enable', 'exit', 'end', 'vrf definition', 'vrf forwarding']
+
+            for i in range(len(old_data)):
+                if old_data[i] != new_data[i]:
+                    modif = True
+                    for sn in section_names:
+                        if old_data[i].startswith(sn):
+                            modif = False
+                    if modif == True:
+                        if not old_data[i].startswith("no"):
+                            new_data.insert(i, "no " + old_data[i])
+                        else:
+                            new_data.insert(i, old_data[i].split(' ', 1)[1])
+                    else:
+                        new_data.insert(i, old_data[i])
+
+            lAS[int(asN) - 1]['config'][int(routerN) - 1] = '\n'.join(new_data)
+
             # TODO: append 'no' before missing statements
             # it may not be a good idea to write just the statements that are new, because we lose all hierarchical aspect
+            
+            print("Router", int(routerN) - 1)
+            print(lAS[int(asN) - 1]['config'][int(routerN) - 1])
+
+    generateBackupFiles(lAS_before_modif) # save .old_configs before adding all no
 
 
 def button1_clicked(lAS, uB):
@@ -266,7 +291,7 @@ def button1_clicked(lAS, uB):
     
     #telnetHandler(lAS) #send the config to telnet
 
-    generateBackupFiles(lAS) # generate backup files for later comparison
+    #generateBackupFiles(lAS) # generate backup files for later comparison
 
     print(uB)
 
