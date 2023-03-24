@@ -99,10 +99,10 @@ def configureInsideProtocols(asName, uB, lAS):
                 text+= ""
 
         elif(asProt == 'OSPF'):
-            text += 'router ospf 1\nrouter-id ' + routerID + "\nexit\n"
+            text += 'router ospf 1\nmpls ldp autoconfig\nrouter-id ' + routerID + "\nexit\nmpls ip\n"
             for a in range (0, matLen): #configure all of the physical interfaces
                 if asMat[i][a] !=0:
-                    text+= "interface " + asMat[i][a]["interface"] + "\nip address " + asMat[i][a]["@ip"] + asMask + "\nip ospf cost " + str(asMat[i][a]["metric"])+"\nno shutdown\nip ospf 1 area 0\nexit\n"
+                    text+= "interface " + asMat[i][a]["interface"] + "\nip address " + asMat[i][a]["@ip"] + asMask + "\nip ospf cost " + str(asMat[i][a]["metric"])+"\nno shutdown\nip ospf 1 area 0\nmpls ip\nexit\n"
             text+= "interface loopback 0\nip address " + loopBackAddress + " 255.255.255.255" + "\nno shutdown\nip ospf 1 area 0 \nexit\n"
             text+= textBorder
 
@@ -150,6 +150,20 @@ def ipForBorderRouters(borderMat, asNb, asMask, uB, i , index):
     #print(listeDuFutur)
     return t
 
+def configurePE(lAS):
+    text = ""
+    for n in range (0, len(lAS)):
+        asName = "AS" + str(n+1)
+        vpn = net[asName]["VPNs"]
+        for i in range (0, len(vpn)):
+            lAS[n]["config"][i]+= "router bgp " + str(n+1) + "\n"
+            for a in range (0,2):
+                print("dudu")
+                neighbor = str(lAS[n]["routers"][int(vpn[i][int(not a)])-1]["loopBackAddress"])
+                lAS[n]["config"][int(vpn[i][a])-1]+= "neighbor " + neighbor + " remote-as " + str(n+1) + "\n"
+                lAS[n]["config"][int(vpn[i][a])-1]+= "neighbor " + neighbor + " update-source Loopback0\naddress-family vpnv4\n"
+                lAS[n]["config"][int(vpn[i][a])-1]+= "neighbor " + neighbor + " activate\n" + "neighbor " + neighbor + " send-community both"
+    
 
 def configureBorderProtocol(lAS, uB):
     #print(uB)
@@ -240,7 +254,7 @@ def button1_clicked(lAS, uB):
             configureInsideProtocols(key, uB, lAS)
 
     #configureBorderProtocol(lAS, uB) #implement the border protocols between all the connectes AS
-
+    configurePE(lAS)
     generateTextFiles(lAS) #generate writter config
     
     #telnetHandler(lAS) #send the config to telnet
