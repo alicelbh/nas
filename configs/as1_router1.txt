@@ -1,3 +1,4 @@
+end
 enable
 configure terminal
 router ospf 1
@@ -6,6 +7,60 @@ router-id 1.0.0.1
 exit
 mpls ip
 interface FastEthernet0/0
+no ip address 1.0.1.1 255.255.255.248
+no ip ospf cost 10
+shutdown
+no ip ospf 1 area 0
+no mpls ip
+exit
+interface loopback 0
+no ip address 1.1.1.1 255.255.255.255
+shutdown
+no ip ospf 1 area 0 
+exit
+router bgp 1
+no neighbor 3.3.3.3 remote-as 1
+no neighbor 3.3.3.3 update-source Loopback0
+address-family vpnv4
+no neighbor 3.3.3.3 activate
+no neighbor 3.3.3.3 send-community both
+exit-address-family
+no 
+end
+configure terminal
+vrf definition Client_A
+no rd 100:100
+no route-target export 100:1000
+no route-target import 100:1000
+exit
+interface GigabitEthernet2/0
+shutdown
+vrf forwarding Client_A
+no ip address 253.0.0.1 255.255.255.0
+exit
+router bgp 1
+address-family ipv4 vrf Client_A
+no neighbor 253.0.0.2 remote-as 11
+no neighbor 253.0.0.2 activate
+exit-address-family
+end
+configure terminal
+vrf definition Client_B
+no rd 100:110
+no route-target export 100:1100
+no route-target import 100:1100
+exit
+interface GigabitEthernet3/0
+shutdown
+vrf forwarding Client_B
+no ip address 253.0.1.1 255.255.255.0
+exit
+router bgp 1
+address-family ipv4 vrf Client_B
+no neighbor 253.0.1.2 remote-as 16
+no neighbor 253.0.1.2 activate
+exit-address-family
+interface GigabitEthernet1/0
 ip address 1.0.1.1 255.255.255.248
 ip ospf cost 10
 no shutdown

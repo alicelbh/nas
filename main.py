@@ -89,7 +89,7 @@ def configureInsideProtocols(asName, uB, lAS):
 
 
         #generate the written configurations
-        text = "enable\nconfigure terminal\n"
+        text = "end\nenable\nconfigure terminal\n"
         if(asProt == 'RIP'):
             text += 'ip router rip ' + routerName + "\nexit\n"
             for a in range (0, matLen): #configure all of the physical interfaces
@@ -170,10 +170,11 @@ def configurePEiBGP(lAS):
             lAS[n]["config"][pe]+= "neighbor " + neighbor + " update-source Loopback0\naddress-family vpnv4\n"
             lAS[n]["config"][pe]+= "neighbor " + neighbor + " activate\n" + "neighbor " + neighbor + " send-community both\nexit-address-family\n"
             #config du RR
+            lAS[n]["config"][rr]+= "router bgp " + str(n+1) +"\n"
             lAS[n]["config"][rr]+= "neighbor " + source + " remote-as " + str(n+1) + "\n"
             lAS[n]["config"][rr]+= "neighbor " + source + " update-source Loopback0\naddress-family vpnv4\n"
             lAS[n]["config"][rr]+= "neighbor " + source + " activate\n" + "neighbor " + source + " send-community both\n"
-            lAS[n]["config"][rr]+= "neighbor " + source + "route-reflector-client\nexit-address-family\n"
+            lAS[n]["config"][rr]+= "neighbor " + source + " route-reflector-client\nexit-address-family\n"
     configureVRF(lAS)
 
 def configureVRF(lAS):
@@ -200,7 +201,7 @@ def configureVRF(lAS):
                 text+= "\nvrf forwarding " + nom_client
                 text+= "\nip address " + ip_pe + " " + mask
                 text+= "\nexit"
-                text+= "\nrouter bgp " + str(a+1)
+                text+= "\nrouter bgp " + str(n+1)
                 text+= "\naddress-family ipv4 vrf " + nom_client
                 text+= "\nneighbor " + ip_client + " remote-as " + str(as_client)
                 text+= "\nneighbor " + ip_client + " activate"

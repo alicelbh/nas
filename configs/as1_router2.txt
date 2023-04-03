@@ -1,3 +1,4 @@
+end
 enable
 configure terminal
 router ospf 1
