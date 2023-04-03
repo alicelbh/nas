@@ -4,6 +4,8 @@ import copy
 import time
 import telnetlib
 import io
+import os
+import re
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
 
@@ -289,6 +291,48 @@ def generateTextFiles(lAS):
             f = open("configs/as"+ str(i+1) + "_router" + str(r+1) +".txt", "w")
             f.write(lAS[i]['config'][r])
 
+def generateBackupFiles(lAS):
+    for i in range (0, len(lAS)):
+        for r in range (0, len(lAS[i]['config'])):
+            f = open(".old_configs/as"+ str(i+1) + "_router" + str(r+1) +".txt", "w")
+            f.write(lAS[i]['config'][r])
+
+def compareOldFiles(lAS):
+    lAS_before_modif = copy.deepcopy(lAS)
+
+    for path in os.listdir(".old_configs/"):
+        with open(".old_configs/" + path, 'r') as file:
+            old_data = file.read().split('\n')
+            (asN, routerN) = re.findall("as([0-9]+)_router([0-9]+)", path)[0]
+            new_data = lAS[int(asN) - 1]['config'][int(routerN) - 1].split('\n')
+
+            section_names = ['interface', 'router', 'address-family', 'configure', 'enable', 'exit', 'end', 'vrf definition', 'vrf forwarding']
+
+            for i in range(len(old_data)):
+                if old_data[i] != new_data[i]:
+                    modif = True
+                    for sn in section_names:
+                        if old_data[i].startswith(sn):
+                            modif = False
+                    if modif == True:
+                        if not old_data[i].startswith("no"):
+                            new_data.insert(i, "no " + old_data[i])
+                        else:
+                            new_data.insert(i, old_data[i].split(' ', 1)[1])
+                    else:
+                        new_data.insert(i, old_data[i])
+
+            lAS[int(asN) - 1]['config'][int(routerN) - 1] = '\n'.join(new_data)
+
+            # TODO: append 'no' before missing statements
+            # it may not be a good idea to write just the statements that are new, because we lose all hierarchical aspect
+            
+            print("Router", int(routerN) - 1)
+            print(lAS[int(asN) - 1]['config'][int(routerN) - 1])
+
+    generateBackupFiles(lAS_before_modif) # save .old_configs before adding all no
+
+
 def button1_clicked(lAS, uB):
    #implement the inner protocols of each AS
     for key in net: #for each 
@@ -297,9 +341,12 @@ def button1_clicked(lAS, uB):
 
     #configureBorderProtocol(lAS, uB) #implement the border protocols between all the connectes AS
     configurePEiBGP(lAS)
+
+    compareOldFiles(lAS)
+
     generateTextFiles(lAS) #generate writter config
     
-    #telnetHandler(lAS) #send the config to telnet
+    telnetHandler(lAS) #send the config to telnet
 
     print(uB)
     print(lAS[0]["routers"][2]["loopBackAddress"])
