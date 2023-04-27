@@ -10,7 +10,9 @@ import re
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
 
 #PE : [numéro du PE, [[interface1, nom_client, rt, net_address_with_client, client_address, AS_num, med], [interface2...]]]
-
+#Client : {
+#            client_name : [[Client_connected_1, rt_of_that_client], [Client_connected_2...]...]
+#         }
 def formatMask(mask_decimal):
     mask_binary = '1' * mask_decimal + '0' * (32 - mask_decimal)  # convert decimal mask to binary
 
