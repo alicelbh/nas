@@ -9,6 +9,7 @@ import re
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
 
+#PE : [numéro du PE, [[interface1, nom_client, rt, net_address_with_client, client_address, AS_num, med], [interface2...]]]
 
 def formatMask(mask_decimal):
     mask_binary = '1' * mask_decimal + '0' * (32 - mask_decimal)  # convert decimal mask to binary
@@ -184,22 +185,28 @@ def configureVRF(lAS):
         asName = "AS" + str(n+1)
         pe = net[asName]["PE"]
         clients = net[asName]["Clients"] 
+        rd = "111:"
         for a in range (0, len(pe)): #for each PE
+            print("i am pe " + str(a+1))
             for b in range (0, len(pe[1])): #for each client the PE is connected to
                 interface_client = pe[a][1][b][0]
                 nom_client = pe[a][1][b][1]
-                id_client = pe[a][1][b][2]
+                rt_client = pe[a][1][b][2]
                 ip_pe = pe[a][1][b][3].split("/")[0]
                 ip_client = pe[a][1][b][4]
                 as_client = pe[a][1][b][5]
+                med_client = str(pe[a][1][b][6])
+                route_map_name = nom_client + "_out"
                 mask = formatMask(int(pe[a][1][b][3].split("/")[1]))
                 listOfImports = clients[nom_client] #get the list of clients our current client is connected to
+                
+                print("and this is ce " + nom_client)
 
                 text = "\nend\nconfigure terminal"
                 text+= "\nvrf definition " + nom_client 
-                text += "\nrd " + id_client 
-                text += "\nroute-target export " +  id_client + "0"
-                text += "\nroute-target import " + id_client + "0"
+                text += "\nrd " + rd + str(a) + str(b) 
+                text += "\nroute-target export " +  rt_client
+                text += "\nroute-target import " + rt_client
                 for c in range (0, len(listOfImports)): #for each client our current  client wants to communicate with
                     text+="\nroute-target import " + listOfImports[c][1] #import each client in the vrf
                 text+= "\nexit"
@@ -212,8 +219,22 @@ def configureVRF(lAS):
                 text+= "\nneighbor " + ip_client + " remote-as " + str(as_client)
                 text+= "\nneighbor " + ip_client + " activate"
                 text+= "\nexit-address-family"
+                text+="\nend"
+                
+                #configure TE for clients
+                text+= "\nconfigure terminal"
+                text+= "\nroute-map " + route_map_name + " permit 10"
+                text+= "\nset community " + str(n+1) + ":" + str(a+1) #the community will be called as_number:a_value_specific_to_the_pe
+                text+= "\nset metric " + med_client
+                text+= "\nexit"
+                text+= "\nrouter bgp " + str(n+1) + "\nbgp always-compare-med"
+                text+= "\naddress-family ipv4 vrf " + nom_client
+                text+= "\nneighbor " + ip_client + " route-map " + route_map_name + " out"
+                text+= "\nend"
 
                 lAS[n]["config"][int(pe[a][0])-1]+= text #add new commands to router config
+            lAS[n]["config"][int(pe[a][0])-1]+= "\nclear ip bgp *"
+    
 
 
 def configureBorderProtocol(lAS, uB):
