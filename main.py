@@ -8,6 +8,7 @@ import os
 import re
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
+from PyQt5.sip import delete
 
 listeDuFutur = []
 #todo : faire l'incrément correct
@@ -289,39 +290,60 @@ def telnetHandler(lAS):
 def generateTextFiles(lAS):
     for i in range (0, len(lAS)):
         for r in range (0, len(lAS[i]['config'])):
-            f = open("configs/as"+ str(i+1) + "_router" + str(r+1) +".txt", "w")
-            f.write(lAS[i]['config'][r])
+            with open("configs/as"+ str(i+1) + "_router" + str(r+1) +".txt", "w") as f:
+                f.write(lAS[i]['config'][r])
 
-def generateBackupFiles(lAS):
+def generateBackupFiles(lAS, path = '.old_configs/as'):
     for i in range (0, len(lAS)):
         for r in range (0, len(lAS[i]['config'])):
-            f = open(".old_configs/as"+ str(i+1) + "_router" + str(r+1) +".txt", "w")
-            f.write(lAS[i]['config'][r])
+            with open(path+ str(i+1) + "_router" + str(r+1) +".txt", "w") as f:
+                f.write(lAS[i]['config'][r])
 
-def compareOldFiles(lAS):
+def compareOldFiles(lAS, path = '.old_configs/'):
     lAS_before_modif = copy.deepcopy(lAS)
 
-    for path in os.listdir(".old_configs/"):
-        with open(".old_configs/" + path, 'r') as file:
+    for subpath in os.listdir(path):
+        with open(path + subpath, 'r') as file:
             old_data = file.read().split('\n')
-            (asN, routerN) = re.findall("as([0-9]+)_router([0-9]+)", path)[0]
+            #print(old_data)
+            (asN, routerN) = re.findall("as([0-9]+)_router([0-9]+)", subpath)[0]
             new_data = lAS[int(asN) - 1]['config'][int(routerN) - 1].split('\n')
 
-            section_names = ['interface', 'router', 'address-family', 'configure', 'enable', 'exit', 'end', 'vrf definition', 'vrf forwarding']
 
-            for i in range(len(old_data)):
-                if old_data[i] != new_data[i]:
-                    modif = True
-                    for sn in section_names:
-                        if old_data[i].startswith(sn):
-                            modif = False
-                    if modif == True:
-                        if not old_data[i].startswith("no"):
-                            new_data.insert(i, "no " + old_data[i])
-                        else:
-                            new_data.insert(i, old_data[i].split(' ', 1)[1])
-                    else:
-                        new_data.insert(i, old_data[i])
+            parsed_old_data = parse_cfg_data(old_data)
+            parsed_new_data = parse_cfg_data(new_data)
+
+            print(old_data)
+            print('old', parsed_old_data)
+            print('\n\n')
+            print(new_data)
+            print('new', parsed_new_data)
+            print('\n\n')
+
+            added_lines, deleted_lines = compare_cfg_data(parsed_old_data, parsed_new_data)
+            added_lines = magic_replace_end(added_lines)
+            deleted_lines = magic_replace_end(deleted_lines)
+
+            print('=================================')
+            print('added', added_lines)
+            print('\n\n')
+            print('deleted', deleted_lines)
+            print('\n\n')
+
+            def append_no(str):
+                if is_entry_point(str) or is_exit_point(str) or str == 'enable':
+                    return str
+
+                if str.startswith("no"):
+                    return str.replace("no ", "", 1)
+                
+                return "no " + str
+
+            output = flatten(added_lines)
+            output.extend([append_no(str) for str in flatten(deleted_lines)])
+            
+            print(output)
+            return output
 
             lAS[int(asN) - 1]['config'][int(routerN) - 1] = '\n'.join(new_data)
 
@@ -332,6 +354,241 @@ def compareOldFiles(lAS):
             print(lAS[int(asN) - 1]['config'][int(routerN) - 1])
 
     generateBackupFiles(lAS_before_modif) # save .old_configs before adding all no
+
+
+def flatten(lst):
+    toReturn = []
+
+    for el in lst:
+        if isinstance(el, list):
+            toReturn.extend(flatten(el))
+        else:
+            toReturn.append(el)
+
+    return toReturn
+
+
+def deeplen(lst):
+    return sum(deeplen(el) if isinstance(el, list) else 1 for el in lst)
+
+
+def is_entry_point(s):
+    if not isinstance(s, str):
+        return False
+
+    entry_points = ['interface ', 'router ', 'address-family ', 'configure ', 'vrf definition ']
+    
+    for entry_point in entry_points:
+        if s.startswith(entry_point):
+            return True
+
+    return False
+
+
+def is_exit_point(s):
+    if not isinstance(s, str):
+        return False
+
+    exit_points = ['exit', 'end', 'exit-address-family']
+
+    for exit_point in exit_points:
+        if s.startswith(exit_point):
+            return True
+
+    return False
+
+
+def parse_cfg_data(data):
+    parsed_data = []
+
+    i = 0
+    while i < len(data):
+        sub_section_found = False
+        
+        if is_entry_point(data[i]):
+            #print(i, data[i])
+            sub_section, exit_immediately = parse_cfg_section(data[i:])
+            parsed_data.append(sub_section)
+            i += deeplen(sub_section)
+            sub_section_found = True
+        else:
+            parsed_data.append(data[i])
+
+        if sub_section_found:
+            continue
+
+        i += 1
+
+    return collapse_parsed_data(parsed_data)
+
+
+def parse_cfg_section(data):
+    parsed_data = []
+
+    entry_line = -1
+    exit_line = -1
+
+    exit_immediately = False
+    
+    # A regler : probleme avec le 'end' -> solution envisagee : exit_immediately
+    # Probleme potentiel aussi : si 2 sections ont le meme nom (on accede 2 fois
+    # a la meme section au cours du fichier)
+
+    i = 0
+    while i < len(data):
+        sub_section_found = False
+
+        if is_entry_point(data[i]):
+            if entry_line == -1:
+                entry_line = i
+            else:
+                sub_section, exit_immediately = parse_cfg_section(data[i:])
+                parsed_data.append(sub_section)
+                i += deeplen(sub_section)
+                sub_section_found = True
+
+        if not exit_immediately:
+            if sub_section_found:
+                continue
+
+            if entry_line != -1:
+                    parsed_data.append(data[i])
+
+
+            if entry_line != -1:
+                if is_exit_point(data[i]):
+                    exit_line = i
+                    if data[i] == "end":
+                        exit_immediately = True
+
+        if (exit_immediately or exit_line != -1) and entry_line != -1:
+            #parsed_data.extend(data[entry_line:exit_line + 1])
+            return parsed_data, exit_immediately
+            #entry_line = -1
+            #exit_line = -1
+            #print(parsed_data)
+
+        i += 1
+
+    return (parsed_data, False)
+
+
+def compare_cfg_data(old_parsed_data, new_parsed_data):
+    added_lines = []
+    deleted_lines = []
+
+    # deleted_lines
+    for old_line in old_parsed_data:
+        if type(old_line) is not list:
+            if old_line not in new_parsed_data:
+                deleted_lines.append(old_line)
+        else:
+            found = False
+            for new_sub_section in new_parsed_data:
+                if type(new_sub_section) is list:
+                    if old_line[0] in new_sub_section:
+                        found = True
+                        added, deleted = compare_cfg_data(old_line, new_sub_section)
+                        added_lines.append(added)
+                        deleted_lines.append(deleted)
+            
+            if not found:
+                deleted_lines.append(old_line)
+
+    #added_lines
+    for new_line in new_parsed_data:
+        if type(new_line) is not list:
+            if new_line not in old_parsed_data:
+                added_lines.append(new_line)
+        
+        else:
+            found = False
+            for old_sub_section in old_parsed_data:
+                if type(old_sub_section) is list:
+                    if new_line[0] in old_sub_section:
+                        found = True
+#                       added, deleted = compare_cfg_data(old_sub_section, new_line)
+#                       added_lines.append(added)
+#                       deleted_lines.append(deleted)
+
+            if not found:
+                added_lines.append(new_line)
+        
+    if added_lines:
+        if is_entry_point(old_parsed_data[0]) or old_parsed_data[0] == 'enable':
+            added_lines.insert(0, old_parsed_data[0])
+        elif old_parsed_data[1] == 'enable':
+            added_lines.insert(0, old_parsed_data[1])
+
+        if is_exit_point(old_parsed_data[len(old_parsed_data)-1]):
+            added_lines.append(old_parsed_data[len(old_parsed_data)-1])
+
+    if deleted_lines:
+        if is_entry_point(old_parsed_data[0]) or old_parsed_data[0] == 'enable':
+            deleted_lines.insert(0, old_parsed_data[0])
+        elif old_parsed_data[1] == 'enable':
+            deleted_lines.insert(0, old_parsed_data[1])
+
+        if is_exit_point(old_parsed_data[len(old_parsed_data)-1]):
+            deleted_lines.append(old_parsed_data[len(old_parsed_data)-1])
+
+    return [el for el in added_lines if el], [el for el in deleted_lines if el]
+
+
+def collapse_parsed_data(data):
+    for j in range(len(data)):
+        if type(data[j]) is list:
+            for k in range(len(data)):
+                if type(data[k]) is list and data[k] and data[j] and k != j:
+                    if data[j][0] == data[k][0]: # same section
+                        for l in range(1, len(data[k])-1):
+                            if type(data[j][-1]) is not list:
+                                data[j].insert(len(data[j])-1, data[k][l])
+                            else:
+                                data[j].append(data[k][l])
+                        data[k] = []
+
+                        end_found = False
+                        for l in range(len(data[j])-1):
+                            if data[j][l] == 'end':
+                                data[j].pop(l)
+                                end_found = True
+
+                        if end_found and data[j][-1] != 'end':
+                                data[j].append('end')
+
+    data = [el for el in data if el]
+
+    for j in range(len(data)):
+        if type(data[j]) is list:
+            data[j] = collapse_parsed_data(data[j])
+
+    return data
+
+
+def magic_replace_end(data):
+    def rec(sub_data):
+        if type(sub_data) is list:
+            for lst in sub_data:
+                if type(lst) is list:
+                    if lst[-1] == 'end':
+                        lst[-1] = 'exit'
+                    else:
+                        rec(lst)
+
+    rec(data)
+
+    if data and type(data) is list:
+        for el in data:
+            if not is_exit_point(el[-1]):
+                if type(el) is list:
+                    sub_el = el
+                    while type(sub_el[-1]) is list:
+                        sub_el = sub_el[-1]
+                    if sub_el[-1] != 'end':
+                        sub_el[-1] = 'end'
+
+    return data
 
 
 def button1_clicked(lAS, uB):
@@ -347,10 +604,21 @@ def button1_clicked(lAS, uB):
 
     generateTextFiles(lAS) #generate writter config
     
-    telnetHandler(lAS) #send the config to telnet
+    #telnetHandler(lAS) #send the config to telnet
 
     print(uB)
     print(lAS[0]["routers"][2]["loopBackAddress"])
+
+#   test_data1 = ["end", "router bgp 1", "neighbor 1.1.1.1 ...", "neighbor 2.2.2.2", "address-family vpnv4", "neighbor ...", "exit", "address-family ipv6", "router bgp 2", "neighbor 1.1.1.1 ...", "exit", "neighbor ...", "exit", "exit"]
+    test_data2 = ["end", "router bgp 1", "neighbor 1.1.1.1 ...", "address-family ipv6", "neighbor ...", "router bgp 2", "neighbor 1.1.1.1 ...", "neighbor 2.2.2.2 ...", "exit", "vrf definition blabla", "test", "exit", "exit", "address-family enplus", "neighbor ...", "exit", "exit"]
+    test_data3 = ["end", "router bgp 1", "neighbor 1.1.1.1 ...", "address-family vpnv4", "neighbor ...", "router bgp 2", "neighbor x.x.x.x", "end", "router bgp 5", "exit"]
+#   print('data2', parse_cfg_data(test_data2))
+#   print('data3', parse_cfg_data(test_data3))
+#   print("FINAL:", parse_cfg_data(test_data3))
+#   added_lines, deleted_lines = compare_cfg_data(parse_cfg_data(test_data2), parse_cfg_data(test_data3))
+#   print('added', added_lines)
+#   print('deleted', deleted_lines)
+#   print(compare_cfg_data(["address-family vpnv4", "neighbor 1111", "neighbor 2222", "exit"], ["address-family vpnv4", "neighbor 3333", "neighbor 2222", "exit"]))
 
 def window(lAS, uB):
     app = QApplication(sys.argv)

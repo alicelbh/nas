@@ -8,7 +8,7 @@
       "protocol": "OSPF",
       "borderProtocol": "BGP",
       "inMatrix":
-                  [[0, ["GigabitEthernet1/0", 10], 0, 0],
+                  [[0, ["FastEthernet0/0", 10], 0, 0],
                   [["FastEthernet0/0", 10], 0, ["GigabitEthernet1/0", 10], 0],
                   [0, ["GigabitEthernet1/0", 10], 0, ["FastEthernet0/0", 10]],
                   [0, 0, ["FastEthernet0/0", 10], 0]],
