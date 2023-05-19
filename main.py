@@ -10,17 +10,18 @@ import re
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
 from PyQt5.sip import delete
 
-listeDuFutur = []
-#todo : faire l'incrément correct
-
+#PE : [numéro du PE, [[interface1, nom_client, rt, net_address_with_client, client_address, AS_num, med], [interface2...]]]
+#Client : {
+#            client_name : [[Client_connected_1, rt_of_that_client], [Client_connected_2...]...]
+#         }
 def formatMask(mask_decimal):
     mask_binary = '1' * mask_decimal + '0' * (32 - mask_decimal)  # convert decimal mask to binary
 
     # convert binary mask to dotted decimal format
     mask_dotted_decimal = ".".join([str(int(mask_binary[i:i+8], 2)) for i in range(0, 32, 8)])
 
-    print("Decimal IPv4 mask:", mask_decimal)
-    print("Dotted decimal mask:", mask_dotted_decimal)
+    # print("Decimal IPv4 mask:", mask_decimal)
+    # print("Dotted decimal mask:", mask_dotted_decimal)
     return mask_dotted_decimal
 
 def configureInsideProtocols(asName, uB, lAS):
@@ -33,11 +34,11 @@ def configureInsideProtocols(asName, uB, lAS):
     asProt = net[asName]['protocol']
     #asPrefix = str(net[asName]['prefix'])
     matLen = len(net[asName]['inMatrix'])
-    linkNumber = 0
+    #linkNumber = 0
     currentIp = 0
-    increment = 2**(32 - int(net[asName]['mask']))
-    #print(increment)
+    increment = 2**(32 - int(net[asName]['mask'])) #number of IP addresses in the subnets
     asIndex = 0
+
     for i in range (0, matLen): #for each router
         routerName = asNb + str(i+1)
         routerID = asNb + '.0.0.' + str(i+1)
@@ -53,10 +54,10 @@ def configureInsideProtocols(asName, uB, lAS):
         borderAsDic = {}
         textBorder = ""
 
-        #configure the interfaces of the border routers in their small subnets
+        #if this router is a border router, this function will configure it
         textBorder+= ipForBorderRouters(borderMat, asNb, asMask, uB, i, asIndex)
 
-        #configure the interfaces of the rest of the routers
+        #configure the interfaces of this router
         for j in range(i, matLen): #we only go through half of the matrix since we can get the two routers on a link by getting asMat[i][j] and asMat[j][i] 
             if asMat[i][j] != 0:
                 subNetAddress = asNb + "0."+ asNb + "." + str(currentIp)
@@ -79,11 +80,11 @@ def configureInsideProtocols(asName, uB, lAS):
                     "metric" : asMat[j][i][1]
                 }
             
-                # progressively replace the raw adjacency matrix data by a dictionary that'll make easier to find the variables we need (subnet address, interface, ip address, etc) 
+                # progressively replace the raw adjacency matrix data by a dictionary that'll make it easier to find the variables we need (subnet address, interface, ip address, etc) 
                 asMat[i][j] = asMatDic
                 asMat[j][i] = asMatDicNeighbor
-                linkNumber += 1
-                currentIp += increment
+                #linkNumber += 1
+                currentIp += increment #jump to the next subnet
                 if(currentIp>247):
                     print("aled ton adresse elle est trop fat")
                     sys.exit()
@@ -111,23 +112,26 @@ def configureInsideProtocols(asName, uB, lAS):
 
         listC.append(text) #add command to list
 
+    #create a dictionnary containing all of the infos about the routers,
+    #the list of all the configs for each router and the AS matrix.
+    #This will make it easier to acces those information later on.
     asSpecifications = {
         "routers" : listR,
         "config" : listC,
         "matrix" : asMat
     }
 
-    lAS.append(asSpecifications)
+    lAS.append(asSpecifications) #list containing the specifications of every AS
 
 def ipForBorderRouters(borderMat, asNb, asMask, uB, i , index):
     t = ""
     currentIp = 0
-    print("aaaaaas " + str(asNb))
-    print("je suis i " + str(i))
+    # print("aaaaaas " + str(asNb))
+    # print("je suis i " + str(i))
     for b in range (index, len(borderMat)):
-        print("je suis index " + str(index))
-        if borderMat[int(asNb)-1][b] != 0: #check if there exist a connection betwteen our AS and another one
-            for z in range (0,len(borderMat[int(asNb)-1][b]), 3): #if there exists one, check if the number of the router i is in the border matrix
+        # print("je suis index " + str(index))
+        if borderMat[int(asNb)-1][b] != 0: #check if there exists a connection betwteen our AS and another one
+            for z in range (0,len(borderMat[int(asNb)-1][b]), 3): #if there exists one, check if the number of the router i is in the border matrix (=if this router is an ASBR)
                 if borderMat[int(asNb)-1][b][z] == i: 
                     borderAsDic = {
                         "router" : i,
@@ -142,15 +146,15 @@ def ipForBorderRouters(borderMat, asNb, asMask, uB, i , index):
                         "@subnet" :  borderMat[b][int(asNb)-1][z+2] + str(currentIp) + asMask
                     }
                   
-                    if borderAsDic["@subnet"] not in listeDuFutur:
+                    if borderAsDic["@subnet"] not in subnetsAlreadyHandled: #avoid adding the subnet information several times
                         print(borderAsDic)
                         print(borderNeighborAsDic)
                         uB[int(asNb)-1][b].append(borderAsDic)
                         uB[b][int(asNb)-1].append(borderNeighborAsDic)
-                    listeDuFutur.append(borderAsDic["@subnet"])
+                    subnetsAlreadyHandled.append(borderAsDic["@subnet"])
                     t += "interface " + borderAsDic["interface"] + "\nip address " + borderAsDic["@ip"] + asMask + "\nno shutdown\nexit\n" 
         index +=1
-    #print(listeDuFutur)
+    print(subnetsAlreadyHandled)
     return t
 
 def configurePEiBGP(lAS):
@@ -179,24 +183,35 @@ def configurePEiBGP(lAS):
     configureVRF(lAS)
 
 def configureVRF(lAS):
-    for n in range (0, len(lAS)):
+    for n in range (0, len(lAS)): #for each AS
         #config VRFs
         asName = "AS" + str(n+1)
         pe = net[asName]["PE"]
-        for a in range (0, len(pe)):
-            for b in range (0, len(pe[1])):
+        clients = net[asName]["Clients"] 
+        rd = "111:"
+        for a in range (0, len(pe)): #for each PE
+            print("i am pe " + str(a+1))
+            for b in range (0, len(pe[1])): #for each client the PE is connected to
                 interface_client = pe[a][1][b][0]
                 nom_client = pe[a][1][b][1]
-                id_client = pe[a][1][b][2]
+                rt_client = pe[a][1][b][2]
                 ip_pe = pe[a][1][b][3].split("/")[0]
                 ip_client = pe[a][1][b][4]
                 as_client = pe[a][1][b][5]
+                med_client = str(pe[a][1][b][6])
+                route_map_name = nom_client + "_out"
                 mask = formatMask(int(pe[a][1][b][3].split("/")[1]))
+                listOfImports = clients[nom_client] #get the list of clients our current client is connected to
+                
+                print("and this is ce " + nom_client)
+
                 text = "\nend\nconfigure terminal"
                 text+= "\nvrf definition " + nom_client 
-                text += "\nrd " + id_client 
-                text += "\nroute-target export " +  id_client + "0"
-                text += "\nroute-target import " + id_client + "0"
+                text += "\nrd " + rd + str(a) + str(b) 
+                text += "\nroute-target export " +  rt_client
+                text += "\nroute-target import " + rt_client
+                for c in range (0, len(listOfImports)): #for each client our current  client wants to communicate with
+                    text+="\nroute-target import " + listOfImports[c][1] #import each client in the vrf
                 text+= "\nexit"
                 text+= "\ninterface " + interface_client + "\nno shutdown"
                 text+= "\nvrf forwarding " + nom_client
@@ -207,8 +222,22 @@ def configureVRF(lAS):
                 text+= "\nneighbor " + ip_client + " remote-as " + str(as_client)
                 text+= "\nneighbor " + ip_client + " activate"
                 text+= "\nexit-address-family"
+                text+="\nend"
+                
+                #configure TE for clients
+                text+= "\nconfigure terminal"
+                text+= "\nroute-map " + route_map_name + " permit 10"
+                text+= "\nset community " + str(n+1) + ":" + str(a+1) #the community will be called as_number:a_value_specific_to_the_pe
+                text+= "\nset metric " + med_client
+                text+= "\nexit"
+                text+= "\nrouter bgp " + str(n+1) + "\nbgp always-compare-med"
+                text+= "\naddress-family ipv4 vrf " + nom_client
+                text+= "\nneighbor " + ip_client + " route-map " + route_map_name + " out"
+                text+= "\nend"
 
                 lAS[n]["config"][int(pe[a][0])-1]+= text #add new commands to router config
+            lAS[n]["config"][int(pe[a][0])-1]+= "\nclear ip bgp *"
+    
 
 
 def configureBorderProtocol(lAS, uB):
@@ -600,14 +629,15 @@ def button1_clicked(lAS, uB):
     #configureBorderProtocol(lAS, uB) #implement the border protocols between all the connectes AS
     configurePEiBGP(lAS)
 
-    compareOldFiles(lAS)
+    #compareOldFiles(lAS)
 
     generateTextFiles(lAS) #generate writter config
     
     #telnetHandler(lAS) #send the config to telnet
 
-    print(uB)
-    print(lAS[0]["routers"][2]["loopBackAddress"])
+    print(lAS[0]["matrix"][1][2]["@ip"])
+    # print(uB)
+    # print(lAS[0]["routers"][2]["loopBackAddress"])
 
 #   test_data1 = ["end", "router bgp 1", "neighbor 1.1.1.1 ...", "neighbor 2.2.2.2", "address-family vpnv4", "neighbor ...", "exit", "address-family ipv6", "router bgp 2", "neighbor 1.1.1.1 ...", "exit", "neighbor ...", "exit", "exit"]
     test_data2 = ["end", "router bgp 1", "neighbor 1.1.1.1 ...", "address-family ipv6", "neighbor ...", "router bgp 2", "neighbor 1.1.1.1 ...", "neighbor 2.2.2.2 ...", "exit", "vrf definition blabla", "test", "exit", "exit", "address-family enplus", "neighbor ...", "exit", "exit"]
@@ -638,7 +668,7 @@ if __name__ == '__main__':
     listAS = [] #mother list that will contain the router list, config list and matrix of each AS
     with open('network_multi.json', 'r') as openfile:
         net = json.load(openfile)
-
+    subnetsAlreadyHandled = []
     #generate an array to store the new information about border router (ip, subnet, etc)
     borderMat = net['adjAS']
     updatedBorder = copy.deepcopy(borderMat)

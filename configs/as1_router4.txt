@@ -29,9 +29,10 @@ exit-address-family
 end
 configure terminal
 vrf definition Client_A
-rd 100:100
-route-target export 100:1000
-route-target import 100:1000
+rd 111:10
+route-target export 100:100
+route-target import 100:100
+route-target import 100:110
 exit
 interface GigabitEthernet2/0
 no shutdown
@@ -45,10 +46,22 @@ neighbor 253.0.0.4 activate
 exit-address-family
 end
 configure terminal
+route-map Client_A_out permit 10
+set community 1:2
+set metric 4
+exit
+router bgp 1
+bgp always-compare-med
+address-family ipv4 vrf Client_A
+neighbor 253.0.0.4 route-map Client_A_out out
+end
+end
+configure terminal
 vrf definition Client_B
-rd 100:110
-route-target export 100:1100
-route-target import 100:1100
+rd 111:11
+route-target export 100:110
+route-target import 100:110
+route-target import 100:100
 exit
 interface GigabitEthernet3/0
 no shutdown
@@ -60,3 +73,15 @@ address-family ipv4 vrf Client_B
 neighbor 253.0.1.4 remote-as 98
 neighbor 253.0.1.4 activate
 exit-address-family
+end
+configure terminal
+route-map Client_B_out permit 10
+set community 1:2
+set metric 9
+exit
+router bgp 1
+bgp always-compare-med
+address-family ipv4 vrf Client_B
+neighbor 253.0.1.4 route-map Client_B_out out
+end
+clear ip bgp *
