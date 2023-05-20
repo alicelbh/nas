@@ -41,3 +41,11 @@ neighbor 4.4.4.4 activate
 neighbor 4.4.4.4 send-community both
 neighbor 4.4.4.4 route-reflector-client
 exit-address-family
+router bgp 1
+neighbor 2.2.2.2 remote-as 1
+neighbor 2.2.2.2 update-source Loopback0
+address-family vpnv4
+neighbor 2.2.2.2 activate
+neighbor 2.2.2.2 send-community both
+neighbor 2.2.2.2 route-reflector-client
+exit-address-family

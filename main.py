@@ -190,83 +190,73 @@ def configureVRF(lAS):
         rd = "111:"
         for a in range (0, len(pe)): #for each PE
             print("i am pe " + str(a+1))
-            for b in range (0, len(pe[1])): #for each client the PE is connected to
-                interface_client = pe[a][1][b][0]
-                nom_client = pe[a][1][b][1]
-                rt_client = pe[a][1][b][2]
-                ip_pe = pe[a][1][b][3].split("/")[0]
-                ip_client = pe[a][1][b][4]
-                as_client = pe[a][1][b][5]
-                med_client = str(pe[a][1][b][6])
-                route_map_name = nom_client + "_out"
-                mask = formatMask(int(pe[a][1][b][3].split("/")[1]))
-                listOfImports = clients[nom_client] #get the list of clients our current client is connected to
-                
-                print("and this is ce " + nom_client)
+            if len(pe[a]) > 1:
+                for b in range (0, len(pe[1])): #for each client the PE is connected to
+                    interface_client = pe[a][1][b][0]
+                    nom_client = pe[a][1][b][1]
+                    rt_client = pe[a][1][b][2]
+                    ip_pe = pe[a][1][b][3].split("/")[0]
+                    ip_client = pe[a][1][b][4]
+                    as_client = pe[a][1][b][5]
+                    med_client = str(pe[a][1][b][6])
+                    route_map_name = nom_client + "_out"
+                    mask = formatMask(int(pe[a][1][b][3].split("/")[1]))
+                    listOfImports = clients[nom_client] #get the list of clients our current client is connected to
+                    
+                    print("and this is ce " + nom_client)
 
-                text = "\nend\nconfigure terminal"
-                text+= "\nvrf definition " + nom_client 
-                text += "\nrd " + rd + str(a) + str(b) 
-                text += "\nroute-target export " +  rt_client
-                text += "\nroute-target import " + rt_client
-                for c in range (0, len(listOfImports)): #for each client our current  client wants to communicate with
-                    text+="\nroute-target import " + listOfImports[c][1] #import each client in the vrf
-                text+= "\nexit"
-                text+= "\ninterface " + interface_client + "\nno shutdown"
-                text+= "\nvrf forwarding " + nom_client
-                text+= "\nip address " + ip_pe + " " + mask
-                text+= "\nexit"
-                text+= "\nrouter bgp " + str(n+1)
-                text+= "\naddress-family ipv4 vrf " + nom_client
-                text+= "\nneighbor " + ip_client + " remote-as " + str(as_client)
-                text+= "\nneighbor " + ip_client + " activate"
-                text+= "\nexit-address-family"
-                text+="\nend"
-                
-                #configure TE for clients
-                text+= "\nconfigure terminal"
-                text+= "\nroute-map " + route_map_name + " permit 10"
-                text+= "\nset community " + str(n+1) + ":" + str(a+1) #the community will be called as_number:a_value_specific_to_the_pe
-                text+= "\nset metric " + med_client
-                text+= "\nexit"
-                text+= "\nrouter bgp " + str(n+1) + "\nbgp always-compare-med"
-                text+= "\naddress-family ipv4 vrf " + nom_client
-                text+= "\nneighbor " + ip_client + " route-map " + route_map_name + " out"
-                text+= "\nend"
-
+                    text = "\nend\nconfigure terminal"
+                    text+= "\nvrf definition " + nom_client 
+                    text += "\nrd " + rd + str(a) + str(b) 
+                    text += "\nroute-target export " +  rt_client
+                    text += "\nroute-target import " + rt_client
+                    for c in range (0, len(listOfImports)): #for each client our current  client wants to communicate with
+                        text+="\nroute-target import " + listOfImports[c][1] #import each client in the vrf
+                    text+= "\nexit"
+                    text+= "\ninterface " + interface_client + "\nno shutdown"
+                    text+= "\nvrf forwarding " + nom_client
+                    text+= "\nip address " + ip_pe + " " + mask
+                    text+= "\nexit"
+                    text+= "\nrouter bgp " + str(n+1)
+                    text+= "\naddress-family ipv4 vrf " + nom_client
+                    text+= "\nneighbor " + ip_client + " remote-as " + str(as_client)
+                    text+= "\nneighbor " + ip_client + " activate"
+                    text+= "\nexit-address-family"
+                    text+="\nend"
+                    
+                    #configure TE for clients
+                    text+= "\nconfigure terminal"
+                    text+= "\nroute-map " + route_map_name + " permit 10"
+                    text+= "\nset community " + str(n+1) + ":" + str(a+1) #the community will be called as_number:a_value_specific_to_the_pe
+                    text+= "\nset metric " + med_client
+                    text+= "\nexit"
+                    text+= "\nrouter bgp " + str(n+1) + "\nbgp always-compare-med"
+                    text+= "\naddress-family ipv4 vrf " + nom_client
+                    text+= "\nneighbor " + ip_client + " route-map " + route_map_name + " out"
+                    text+= "\nend"
                 lAS[n]["config"][int(pe[a][0])-1]+= text #add new commands to router config
             lAS[n]["config"][int(pe[a][0])-1]+= "\nclear ip bgp *"
     
 
 
 def configureBorderProtocol(lAS, uB):
-    #print(uB)
     adjAS = net['adjAS']
+    if adjAS == [[0]]:
+        print("single as")
+        return
     for n in range(0, len(lAS)):
         mask = "/" + str(net['AS' + str((n+1))]['mask'])
-        ####### configure iBGP
-        for i in range(0, len(lAS[n]["routers"])):
-            lAS[n]["config"][i] += "router bgp " + str(n+1) +"\nbgp router-id " + lAS[n]["routers"][i]["routerID"] + "\n"
-            for j in range(0, len(lAS[n]["routers"])):
-                if i != j:
-                    lAS[n]["config"][i] += "neighbor " + lAS[n]["routers"][j]["loopBackAddress"] +" remote-as " +str(n+1)+"\nneighbor " + lAS[n]["routers"][j]["loopBackAddress"] +" update-source Loopback0\n"
-            lAS[n]["config"][i] += "address-family ipv4 unicast\n"
-            for j in range(0, len(lAS[n]["routers"])):
-                if i!=j:
-                    lAS[n]["config"][i] += "neighbor " + lAS[n]["routers"][j]["loopBackAddress"] +" activate\nneighbor " + listAS[n]["routers"][j]["loopBackAddress"] +" send-community\n"
-            for j in range(0, len(lAS[n]["matrix"][i])):
-                if lAS[n]["matrix"][i][j] != 0:
-                    lAS[n]["config"][i] += "network " + lAS[n]["matrix"][i][j]["@subnet"] + mask +"\n"
-            lAS[n]["config"][i] += "exit\n"
+
         ####### configure eBGP
         for i in range(0, len(adjAS[n])):
             if (adjAS[n][i]) != 0:
                 for y in range(0, len(uB[i][n])):
                     localRouter = uB[n][i][y]['router'] #get number of the border router in our AS 
                     neighborAddress =  uB[i][n][y]['@ip']#get the ip of the border router we are connected to 
+                    lAS[n]["config"][localRouter] += "end\nconfigure terminal\n router bgp " + str(n+1)
                     lAS[n]["config"][localRouter] += "neighbor " + neighborAddress + " remote-as " + str(i+1) + "\naddress-family ipv4 unicast\nneighbor " + neighborAddress + " activate\nneighbor " + neighborAddress + " \nnetwork " + uB[i][n][y]['@subnet'] + "\nexit\n"
 
-    #routemap_configuration(lAS, uB, adjAS)
+    routemap_configuration(lAS, uB, adjAS)
 
 def routemap_configuration(lAS, uB, adjAS):
     for i in range(0, len(adjAS)):
@@ -293,7 +283,7 @@ def routemap_configuration(lAS, uB, adjAS):
                             lAS[i]["config"][router] += "end\nconfigure terminal\nip community-list standard provider_filter permit " + str(i+1)+":10\nip community-list standard peer_filter permit " + str(i+1)+":20\n"+alist+"route-map non_client_out deny 10\nmatch community provider_filter\nexit\nroute-map non_client_out deny 20\nmatch community peer_filter\nexit\nroute-map non_client_out permit 100\nexit\nroute-map provider_handler permit 10\nset community "+str(i+1)+":10\nset local-preference 50\nexit\nrouter bgp " + str(i+1) + "\naddress-family ipv4 unicast\nneighbor " + address + " route-map non_client_out out\nneighbor " + address + " route-map provider_handler in\nend\n"
                         case "client":
                             lAS[i]["config"][router] += "end\nconfigure terminal\nroute-map client_handler permit 10\nset community " + str(i+1)+":37\nset local-preference 300\nexit\nrouter bgp " + str(i+1) + "\naddress-family ipv4 unicast\nneighbor " + address + " route-map client_handler in\nend\n"
-                    lAS[i]["config"][router] += "clear bgp ip unicast *"
+                    lAS[i]["config"][router] += "clear bgp ipv4 unicast *"
 
 def telnetHandler(lAS):
     for i in range(len(net.keys()) - 1):
@@ -369,13 +359,13 @@ def button1_clicked(lAS, uB):
         if (key!="adjAS"):
             configureInsideProtocols(key, uB, lAS)
 
-    #configureBorderProtocol(lAS, uB) #implement the border protocols between all the connectes AS
+    configureBorderProtocol(lAS, uB) #implement the border protocols between all the connectes AS
     configurePEiBGP(lAS)
 
     #compareOldFiles(lAS)
 
     generateTextFiles(lAS) #generate writter config
-    
+    print("written")
     #telnetHandler(lAS) #send the config to telnet
     print(lAS[0]["matrix"][1][2]["@ip"])
     # print(uB)
