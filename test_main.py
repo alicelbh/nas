@@ -1,6 +1,5 @@
 import unittest
 
-from PyQt5.sip import delete
 import main
 
 class MainTest(unittest.TestCase):

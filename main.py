@@ -342,22 +342,9 @@ def compareOldFiles(lAS, path = '.old_configs/'):
             parsed_old_data = parse_cfg_data(old_data)
             parsed_new_data = parse_cfg_data(new_data)
 
-            print(old_data)
-            print('old', parsed_old_data)
-            print('\n\n')
-            print(new_data)
-            print('new', parsed_new_data)
-            print('\n\n')
-
             added_lines, deleted_lines = compare_cfg_data(parsed_old_data, parsed_new_data)
             added_lines = magic_replace_end(added_lines)
             deleted_lines = magic_replace_end(deleted_lines)
-
-            print('=================================')
-            print('added', added_lines)
-            print('\n\n')
-            print('deleted', deleted_lines)
-            print('\n\n')
 
             def append_no(str):
                 if is_entry_point(str) or is_exit_point(str) or str == 'enable':
@@ -405,7 +392,7 @@ def is_entry_point(s):
     if not isinstance(s, str):
         return False
 
-    entry_points = ['interface ', 'router ', 'address-family ', 'configure ', 'vrf definition ']
+    entry_points = ['interface ', 'router ', 'address-family ', 'configure ', 'vrf definition ', 'route-map ']
     
     for entry_point in entry_points:
         if s.startswith(entry_point):
@@ -629,7 +616,7 @@ def button1_clicked(lAS, uB):
     #configureBorderProtocol(lAS, uB) #implement the border protocols between all the connectes AS
     configurePEiBGP(lAS)
 
-    #compareOldFiles(lAS)
+    compareOldFiles(lAS)
 
     generateTextFiles(lAS) #generate writter config
     
@@ -638,17 +625,6 @@ def button1_clicked(lAS, uB):
     print(lAS[0]["matrix"][1][2]["@ip"])
     # print(uB)
     # print(lAS[0]["routers"][2]["loopBackAddress"])
-
-#   test_data1 = ["end", "router bgp 1", "neighbor 1.1.1.1 ...", "neighbor 2.2.2.2", "address-family vpnv4", "neighbor ...", "exit", "address-family ipv6", "router bgp 2", "neighbor 1.1.1.1 ...", "exit", "neighbor ...", "exit", "exit"]
-    test_data2 = ["end", "router bgp 1", "neighbor 1.1.1.1 ...", "address-family ipv6", "neighbor ...", "router bgp 2", "neighbor 1.1.1.1 ...", "neighbor 2.2.2.2 ...", "exit", "vrf definition blabla", "test", "exit", "exit", "address-family enplus", "neighbor ...", "exit", "exit"]
-    test_data3 = ["end", "router bgp 1", "neighbor 1.1.1.1 ...", "address-family vpnv4", "neighbor ...", "router bgp 2", "neighbor x.x.x.x", "end", "router bgp 5", "exit"]
-#   print('data2', parse_cfg_data(test_data2))
-#   print('data3', parse_cfg_data(test_data3))
-#   print("FINAL:", parse_cfg_data(test_data3))
-#   added_lines, deleted_lines = compare_cfg_data(parse_cfg_data(test_data2), parse_cfg_data(test_data3))
-#   print('added', added_lines)
-#   print('deleted', deleted_lines)
-#   print(compare_cfg_data(["address-family vpnv4", "neighbor 1111", "neighbor 2222", "exit"], ["address-family vpnv4", "neighbor 3333", "neighbor 2222", "exit"]))
 
 def window(lAS, uB):
     app = QApplication(sys.argv)
