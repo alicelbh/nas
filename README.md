@@ -7,7 +7,7 @@ Phase 3 : OK
 Phase 4 : 
 - Manageability (config ghosting) OK
 - Internet services OK
-- Ingress TE r multi-connected CE routers
+- Ingress TE multi-connected CE routers
 
 
 **2) JSON File**
