@@ -360,7 +360,7 @@ def compareOldFiles(lAS, path = '.old_configs/'):
                     output = flatten(added_lines)
                     output.extend([append_no(str) for str in flatten(deleted_lines)])
                     
-                    print(output)
+                    #print(output)
                     #return output
 
                     lAS[asN]['config'][routerN] = '\n'.join(output)
@@ -371,7 +371,7 @@ def compareOldFiles(lAS, path = '.old_configs/'):
                     #print("Router", int(routerN) - 1)
                     #print(lAS[int(asN) - 1]['config'][int(routerN) - 1])
             else:
-                print(lAS[asN]['config'][routerN])
+                #print(lAS[asN]['config'][routerN])
                 pass
 
     generateBackupFiles(lAS_before_modif) # save .old_configs before adding all no
