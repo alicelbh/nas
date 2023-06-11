@@ -6,7 +6,7 @@ mpls ldp autoconfig
 router-id 1.0.0.1
 exit
 mpls ip
-interface GigabitEthernet1/0
+interface FastEthernet0/0
 ip address 1.0.1.1 255.255.255.248
 ip ospf cost 10
 no shutdown
@@ -26,6 +26,35 @@ neighbor 3.3.3.3 activate
 neighbor 3.3.3.3 send-community both
 exit-address-family
 
+end
+configure terminal
+vrf definition Client_A
+rd 111:00
+route-target export 100:100
+route-target import 100:100
+route-target import 100:110
+exit
+interface GigabitEthernet2/0
+no shutdown
+vrf forwarding Client_A
+ip address 253.0.0.1 255.255.255.0
+exit
+router bgp 1
+address-family ipv4 vrf Client_A
+neighbor 253.0.0.2 remote-as 11
+neighbor 253.0.0.2 activate
+exit-address-family
+end
+configure terminal
+route-map Client_A_out permit 10
+set community 1:1
+set metric 2
+exit
+router bgp 1
+bgp always-compare-med
+address-family ipv4 vrf Client_A
+neighbor 253.0.0.2 route-map Client_A_out out
+end
 end
 configure terminal
 vrf definition Client_B
@@ -54,5 +83,6 @@ router bgp 1
 bgp always-compare-med
 address-family ipv4 vrf Client_B
 neighbor 253.0.1.2 route-map Client_B_out out
+end
 end
 clear ip bgp *

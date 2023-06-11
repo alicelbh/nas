@@ -33,4 +33,5 @@ neighbor 3.3.3.3 activate
 neighbor 3.3.3.3 send-community both
 exit-address-family
 
+end
 clear ip bgp *

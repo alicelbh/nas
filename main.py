@@ -234,7 +234,8 @@ def configureVRF(lAS):
                     text+= "\naddress-family ipv4 vrf " + nom_client
                     text+= "\nneighbor " + ip_client + " route-map " + route_map_name + " out"
                     text+= "\nend"
-                lAS[n]["config"][int(pe[a][0])-1]+= text #add new commands to router config
+                    lAS[n]["config"][int(pe[a][0])-1]+= text #add new commands to router config
+            lAS[n]["config"][int(pe[a][0])-1]+= "\nend"  
             lAS[n]["config"][int(pe[a][0])-1]+= "\nclear ip bgp *"
     
 
@@ -366,7 +367,7 @@ def button1_clicked(lAS, uB):
 
     generateTextFiles(lAS) #generate writter config
     print("written")
-    #telnetHandler(lAS) #send the config to telnet
+    telnetHandler(lAS) #send the config to telnet
     print(lAS[0]["matrix"][1][2]["@ip"])
     # print(uB)
     # print(lAS[0]["routers"][2]["loopBackAddress"])
