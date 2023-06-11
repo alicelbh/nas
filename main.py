@@ -338,7 +338,6 @@ def compareOldFiles(lAS, path = '.old_configs/'):
             (asN, routerN) = re.findall("as([0-9]+)_router([0-9]+)", subpath)[0]
             new_data = lAS[int(asN) - 1]['config'][int(routerN) - 1].split('\n')
 
-
             parsed_old_data = parse_cfg_data(old_data)
             parsed_new_data = parse_cfg_data(new_data)
 
@@ -358,16 +357,16 @@ def compareOldFiles(lAS, path = '.old_configs/'):
             output = flatten(added_lines)
             output.extend([append_no(str) for str in flatten(deleted_lines)])
             
-            print(output)
-            return output
+            #print(output)
+            #return output
 
-            lAS[int(asN) - 1]['config'][int(routerN) - 1] = '\n'.join(new_data)
+            lAS[int(asN) - 1]['config'][int(routerN) - 1] = '\n'.join(output)
 
             # TODO: append 'no' before missing statements
             # it may not be a good idea to write just the statements that are new, because we lose all hierarchical aspect
             
-            print("Router", int(routerN) - 1)
-            print(lAS[int(asN) - 1]['config'][int(routerN) - 1])
+            #print("Router", int(routerN) - 1)
+            #print(lAS[int(asN) - 1]['config'][int(routerN) - 1])
 
     generateBackupFiles(lAS_before_modif) # save .old_configs before adding all no
 
