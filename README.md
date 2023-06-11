@@ -8,6 +8,7 @@ Phase 4 :
 - Internet services OK
 - Ingress TE r multi-connected CE routers
 
+
 2) JSON File
 Each AS has a mask, an AS Number, a router type (not used but could be if we needed to), the internal protocol (OSPF or RIP), the number of the router which serves as the route reflector and the border protocol (BGP). 
 
@@ -21,8 +22,10 @@ The VRFs are defined as : [interface_name, vrf_name, route_target, net_ip@, ce_i
 
 Each client can communicate with a list of other clients : "Client A" can communicate with [["Client_B", route_target_client_b], ["Client_C", route_target_client_c]]
 
+
 3) Run the code
 * python3 main.py
+
 
 4) Bonus : modify the matrix of an AS
 To modify the inside matrix of an AS in the JSON, type :
