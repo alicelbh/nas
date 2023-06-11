@@ -331,42 +331,47 @@ def generateBackupFiles(lAS, path = '.old_configs/as'):
 def compareOldFiles(lAS, path = '.old_configs/'):
     lAS_before_modif = copy.deepcopy(lAS)
 
-    for subpath in os.listdir(path):
-        with open(path + subpath, 'r') as file:
-            old_data = file.read().split('\n')
-            #print(old_data)
-            (asN, routerN) = re.findall("as([0-9]+)_router([0-9]+)", subpath)[0]
-            new_data = lAS[int(asN) - 1]['config'][int(routerN) - 1].split('\n')
+    for asN in range(len(lAS)):
+        for routerN in range(len(lAS[asN]['config'])):
+            path = '.old_configs/as' + str(asN + 1) + '_router' + str(routerN + 1) + '.txt'
+            if(os.path.isfile(path)):
+                with open(path, 'r') as file:
+                    old_data = file.read().split('\n')
+                    #print(old_data)
+                    #(asN, routerN) = re.findall("as([0-9]+)_router([0-9]+)", subpath)[0]
+                    new_data = lAS[int(asN) - 1]['config'][int(routerN) - 1].split('\n')
 
-            parsed_old_data = parse_cfg_data(old_data)
-            parsed_new_data = parse_cfg_data(new_data)
+                    parsed_old_data = parse_cfg_data(old_data)
+                    parsed_new_data = parse_cfg_data(new_data)
 
-            added_lines, deleted_lines = compare_cfg_data(parsed_old_data, parsed_new_data)
-            added_lines = magic_replace_end(added_lines)
-            deleted_lines = magic_replace_end(deleted_lines)
+                    added_lines, deleted_lines = compare_cfg_data(parsed_old_data, parsed_new_data)
+                    added_lines = magic_replace_end(added_lines)
+                    deleted_lines = magic_replace_end(deleted_lines)
 
-            def append_no(str):
-                if is_entry_point(str) or is_exit_point(str) or str == 'enable':
-                    return str
+                    def append_no(str):
+                        if is_entry_point(str) or is_exit_point(str) or str == 'enable':
+                            return str
 
-                if str.startswith("no"):
-                    return str.replace("no ", "", 1)
-                
-                return "no " + str
+                        if str.startswith("no"):
+                            return str.replace("no ", "", 1)
+                        
+                        return "no " + str
 
-            output = flatten(added_lines)
-            output.extend([append_no(str) for str in flatten(deleted_lines)])
-            
-            #print(output)
-            #return output
+                    output = flatten(added_lines)
+                    output.extend([append_no(str) for str in flatten(deleted_lines)])
+                    
+                    print(output)
+                    #return output
 
-            lAS[int(asN) - 1]['config'][int(routerN) - 1] = '\n'.join(output)
+                    lAS[int(asN) - 1]['config'][int(routerN) - 1] = '\n'.join(output)
 
-            # TODO: append 'no' before missing statements
-            # it may not be a good idea to write just the statements that are new, because we lose all hierarchical aspect
-            
-            #print("Router", int(routerN) - 1)
-            #print(lAS[int(asN) - 1]['config'][int(routerN) - 1])
+                    # TODO: append 'no' before missing statements
+                    # it may not be a good idea to write just the statements that are new, because we lose all hierarchical aspect
+                    
+                    #print("Router", int(routerN) - 1)
+                    #print(lAS[int(asN) - 1]['config'][int(routerN) - 1])
+            else:
+                pass
 
     generateBackupFiles(lAS_before_modif) # save .old_configs before adding all no
 
