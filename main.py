@@ -8,6 +8,7 @@ import os
 import re
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
+from PyQt5.sip import delete
 
 #PE : [numéro du PE, [[interface1, nom_client, rt, net_address_with_client, client_address, AS_num, med], [interface2...]]]
 #Client : {
@@ -37,7 +38,7 @@ def configureInsideProtocols(asName, uB, lAS):
     currentIp = 0
     increment = 2**(32 - int(net[asName]['mask'])) #number of IP addresses in the subnets
     asIndex = 0
-
+    k = 0
     for i in range (0, matLen): #for each router
         routerName = asNb + str(i+1)
         routerID = asNb + '.0.0.' + str(i+1)
@@ -57,11 +58,12 @@ def configureInsideProtocols(asName, uB, lAS):
         textBorder+= ipForBorderRouters(borderMat, asNb, asMask, uB, i, asIndex)
 
         #configure the interfaces of this router
+        
         for j in range(i, matLen): #we only go through half of the matrix since we can get the two routers on a link by getting asMat[i][j] and asMat[j][i] 
             if asMat[i][j] != 0:
                 subNetAddress = asNb + "0."+ asNb + "." + str(currentIp)
-                inAddress = asNb +  ".0." + asNb + "." + str((currentIp+1))
-                inAddressNeighbor = asNb +  ".0." + asNb + "." + str((currentIp+2))
+                inAddress = asNb +  ".0." + str(k) + "." + "1"
+                inAddressNeighbor = asNb +  ".0." + str(k) + "." + "2"
                 # print(subNetAddress)
                 # print(inAddress)
                 # print(inAddressNeighbor)
@@ -84,13 +86,14 @@ def configureInsideProtocols(asName, uB, lAS):
                 asMat[j][i] = asMatDicNeighbor
                 #linkNumber += 1
                 currentIp += increment #jump to the next subnet
+                k+=1
                 if(currentIp>247):
                     print("aled ton adresse elle est trop fat")
                     sys.exit()
 
 
         #generate the written configurations
-        text = "end\nenable\nconfigure terminal\n"
+        text = "end\nenable\nconfigure terminal\nip bgp-community new-format\nip cef\n"
         if(asProt == 'RIP'):
             text += 'ip router rip ' + routerName + "\nexit\n"
             for a in range (0, matLen): #configure all of the physical interfaces
@@ -102,11 +105,12 @@ def configureInsideProtocols(asName, uB, lAS):
                 text+= ""
 
         elif(asProt == 'OSPF'):
-            text += 'router ospf 1\nmpls ldp autoconfig\nrouter-id ' + routerID + "\nexit\nmpls ip\n"
+            text += 'router ospf 1\nrouter-id ' + routerID + "\nexit\nmpls ip\n"
             for a in range (0, matLen): #configure all of the physical interfaces
                 if asMat[i][a] !=0:
                     text+= "interface " + asMat[i][a]["interface"] + "\nip address " + asMat[i][a]["@ip"] + asMask + "\nip ospf cost " + str(asMat[i][a]["metric"])+"\nno shutdown\nip ospf 1 area 0\nmpls ip\nexit\n"
             text+= "interface loopback 0\nip address " + loopBackAddress + " 255.255.255.255" + "\nno shutdown\nip ospf 1 area 0 \nexit\n"
+            text += 'router ospf 1\nmpls ldp autoconfig\n'
             text+= textBorder
 
         listC.append(text) #add command to list
@@ -164,7 +168,7 @@ def configurePEiBGP(lAS):
         pe_list = net[asName]["PE"]
         for i in range (0, len(pe_list)):
             pe = pe_list[i][0] -1
-            lAS[n]["config"][pe]+= "router bgp " + str(n+1) + "\n"
+            lAS[n]["config"][pe]+= "router bgp " + str(n+1) + "\nbgp log-neighbor-changes\n"
             print("dudu")
             neighbor = lAS[n]["routers"][rr]["loopBackAddress"]
             source = lAS[n]["routers"][pe]["loopBackAddress"]
@@ -207,9 +211,12 @@ def configureVRF(lAS):
 
                     text = "\nend\nconfigure terminal"
                     text+= "\nvrf definition " + nom_client 
+
                     text += "\nrd " + rd + str(a) + str(b) 
                     text += "\nroute-target export " +  rt_client
                     text += "\nroute-target import " + rt_client
+                    text += "\naddress-family ipv4"
+                    text += "\nexit-address-family"
                     for c in range (0, len(listOfImports)): #for each client our current  client wants to communicate with
                         text+="\nroute-target import " + listOfImports[c][1] #import each client in the vrf
                     text+= "\nexit"
@@ -221,6 +228,7 @@ def configureVRF(lAS):
                     text+= "\naddress-family ipv4 vrf " + nom_client
                     text+= "\nneighbor " + ip_client + " remote-as " + str(as_client)
                     text+= "\nneighbor " + ip_client + " activate"
+                    text+= "\nneighbor " + ip_client + " send-community"
                     text+= "\nexit-address-family"
                     text+="\nend"
                     
@@ -309,49 +317,297 @@ def telnetHandler(lAS):
 def generateTextFiles(lAS):
     for i in range (0, len(lAS)):
         for r in range (0, len(lAS[i]['config'])):
-            f = open("configs/as"+ str(i+1) + "_router" + str(r+1) +".txt", "w")
-            f.write(lAS[i]['config'][r])
+            with open("configs/as"+ str(i+1) + "_router" + str(r+1) +".txt", "w") as f:
+                f.write(lAS[i]['config'][r])
 
-def generateBackupFiles(lAS):
+def generateBackupFiles(lAS, path = '.old_configs/as'):
     for i in range (0, len(lAS)):
         for r in range (0, len(lAS[i]['config'])):
-            f = open(".old_configs/as"+ str(i+1) + "_router" + str(r+1) +".txt", "w")
-            f.write(lAS[i]['config'][r])
+            with open(path+ str(i+1) + "_router" + str(r+1) +".txt", "w") as f:
+                f.write(lAS[i]['config'][r])
 
-def compareOldFiles(lAS):
+def compareOldFiles(lAS, path = '.old_configs/'):
     lAS_before_modif = copy.deepcopy(lAS)
 
-    for path in os.listdir(".old_configs/"):
-        with open(".old_configs/" + path, 'r') as file:
-            old_data = file.read().split('\n')
-            (asN, routerN) = re.findall("as([0-9]+)_router([0-9]+)", path)[0]
-            new_data = lAS[int(asN) - 1]['config'][int(routerN) - 1].split('\n')
+    for asN in range(len(lAS)):
+        for routerN in range(len(lAS[asN]['config'])):
+            path = '.old_configs/as' + str(asN + 1) + '_router' + str(routerN + 1) + '.txt'
+            if(os.path.isfile(path)):
+                with open(path, 'r') as file:
+                    old_data = file.read().split('\n')
+                    #print(old_data)
+                    #(asN, routerN) = re.findall("as([0-9]+)_router([0-9]+)", subpath)[0]
+                    new_data = lAS[asN]['config'][routerN].split('\n')
 
-            section_names = ['interface', 'router', 'address-family', 'configure', 'enable', 'exit', 'end', 'vrf definition', 'vrf forwarding']
+                    parsed_old_data = parse_cfg_data(old_data)
+                    parsed_new_data = parse_cfg_data(new_data)
 
-            for i in range(len(old_data)):
-                if old_data[i] != new_data[i]:
-                    modif = True
-                    for sn in section_names:
-                        if old_data[i].startswith(sn):
-                            modif = False
-                    if modif == True:
-                        if not old_data[i].startswith("no"):
-                            new_data.insert(i, "no " + old_data[i])
-                        else:
-                            new_data.insert(i, old_data[i].split(' ', 1)[1])
-                    else:
-                        new_data.insert(i, old_data[i])
+                    added_lines, deleted_lines = compare_cfg_data(parsed_old_data, parsed_new_data)
+                    added_lines = magic_replace_end(added_lines)
+                    deleted_lines = magic_replace_end(deleted_lines)
 
-            lAS[int(asN) - 1]['config'][int(routerN) - 1] = '\n'.join(new_data)
+                    def append_no(str):
+                        if is_entry_point(str) or is_exit_point(str) or str == 'enable':
+                            return str
 
-            # TODO: append 'no' before missing statements
-            # it may not be a good idea to write just the statements that are new, because we lose all hierarchical aspect
-            
-            print("Router", int(routerN) - 1)
-            print(lAS[int(asN) - 1]['config'][int(routerN) - 1])
+                        if str.startswith("no"):
+                            return str.replace("no ", "", 1)
+                        
+                        return "no " + str
+                    output =[append_no(str) for str in flatten(deleted_lines)]
+                    output.extend(flatten(added_lines))
+                    
+                    
+                    print(output)
+                    #return output
+
+                    lAS[asN]['config'][routerN] = '\n'.join(output)
+
+                    # TODO: append 'no' before missing statements
+                    # it may not be a good idea to write just the statements that are new, because we lose all hierarchical aspect
+                    
+                    #print("Router", int(routerN) - 1)
+                    #print(lAS[int(asN) - 1]['config'][int(routerN) - 1])
+            else:
+                print(lAS[asN]['config'][routerN])
+                pass
 
     generateBackupFiles(lAS_before_modif) # save .old_configs before adding all no
+
+
+def flatten(lst):
+    toReturn = []
+
+    for el in lst:
+        if isinstance(el, list):
+            toReturn.extend(flatten(el))
+        else:
+            toReturn.append(el)
+
+    return toReturn
+
+
+def deeplen(lst):
+    return sum(deeplen(el) if isinstance(el, list) else 1 for el in lst)
+
+
+def is_entry_point(s):
+    if not isinstance(s, str):
+        return False
+
+    entry_points = ['interface ', 'router ', 'address-family ', 'configure ', 'vrf definition ', 'route-map ']
+    
+    for entry_point in entry_points:
+        if s.startswith(entry_point):
+            return True
+
+    return False
+
+
+def is_exit_point(s):
+    if not isinstance(s, str):
+        return False
+
+    exit_points = ['exit', 'end', 'exit-address-family']
+
+    for exit_point in exit_points:
+        if s.startswith(exit_point):
+            return True
+
+    return False
+
+
+def parse_cfg_data(data):
+    parsed_data = []
+
+    i = 0
+    while i < len(data):
+        sub_section_found = False
+        
+        if is_entry_point(data[i]):
+            #print(i, data[i])
+            sub_section, exit_immediately = parse_cfg_section(data[i:])
+            parsed_data.append(sub_section)
+            i += deeplen(sub_section)
+            sub_section_found = True
+        else:
+            parsed_data.append(data[i])
+
+        if sub_section_found:
+            continue
+
+        i += 1
+
+    return collapse_parsed_data(parsed_data)
+
+
+def parse_cfg_section(data):
+    parsed_data = []
+
+    entry_line = -1
+    exit_line = -1
+
+    exit_immediately = False
+    
+    # A regler : probleme avec le 'end' -> solution envisagee : exit_immediately
+    # Probleme potentiel aussi : si 2 sections ont le meme nom (on accede 2 fois
+    # a la meme section au cours du fichier)
+
+    i = 0
+    while i < len(data):
+        sub_section_found = False
+
+        if is_entry_point(data[i]):
+            if entry_line == -1:
+                entry_line = i
+            else:
+                sub_section, exit_immediately = parse_cfg_section(data[i:])
+                parsed_data.append(sub_section)
+                i += deeplen(sub_section)
+                sub_section_found = True
+
+        if not exit_immediately:
+            if sub_section_found:
+                continue
+
+            if entry_line != -1:
+                    parsed_data.append(data[i])
+
+
+            if entry_line != -1:
+                if is_exit_point(data[i]):
+                    exit_line = i
+                    if data[i] == "end":
+                        exit_immediately = True
+
+        if (exit_immediately or exit_line != -1) and entry_line != -1:
+            #parsed_data.extend(data[entry_line:exit_line + 1])
+            return parsed_data, exit_immediately
+            #entry_line = -1
+            #exit_line = -1
+            #print(parsed_data)
+
+        i += 1
+
+    return (parsed_data, False)
+
+
+def compare_cfg_data(old_parsed_data, new_parsed_data):
+    added_lines = []
+    deleted_lines = []
+
+    # deleted_lines
+    for old_line in old_parsed_data:
+        if type(old_line) is not list:
+            if old_line not in new_parsed_data:
+                deleted_lines.append(old_line)
+        else:
+            found = False
+            for new_sub_section in new_parsed_data:
+                if type(new_sub_section) is list:
+                    if old_line[0] in new_sub_section:
+                        found = True
+                        added, deleted = compare_cfg_data(old_line, new_sub_section)
+                        added_lines.append(added)
+                        deleted_lines.append(deleted)
+            
+            if not found:
+                deleted_lines.append(old_line)
+
+    #added_lines
+    for new_line in new_parsed_data:
+        if type(new_line) is not list:
+            if new_line not in old_parsed_data:
+                added_lines.append(new_line)
+        
+        else:
+            found = False
+            for old_sub_section in old_parsed_data:
+                if type(old_sub_section) is list:
+                    if new_line[0] in old_sub_section:
+                        found = True
+#                       added, deleted = compare_cfg_data(old_sub_section, new_line)
+#                       added_lines.append(added)
+#                       deleted_lines.append(deleted)
+
+            if not found:
+                added_lines.append(new_line)
+        
+    if added_lines:
+        if is_entry_point(old_parsed_data[0]) or old_parsed_data[0] == 'enable':
+            added_lines.insert(0, old_parsed_data[0])
+        elif old_parsed_data[1] == 'enable':
+            added_lines.insert(0, old_parsed_data[1])
+
+        if is_exit_point(old_parsed_data[len(old_parsed_data)-1]):
+            added_lines.append(old_parsed_data[len(old_parsed_data)-1])
+
+    if deleted_lines:
+        if is_entry_point(old_parsed_data[0]) or old_parsed_data[0] == 'enable':
+            deleted_lines.insert(0, old_parsed_data[0])
+        elif old_parsed_data[1] == 'enable':
+            deleted_lines.insert(0, old_parsed_data[1])
+
+        if is_exit_point(old_parsed_data[len(old_parsed_data)-1]):
+            deleted_lines.append(old_parsed_data[len(old_parsed_data)-1])
+
+    return [el for el in added_lines if el], [el for el in deleted_lines if el]
+
+
+def collapse_parsed_data(data):
+    for j in range(len(data)):
+        if type(data[j]) is list:
+            for k in range(len(data)):
+                if type(data[k]) is list and data[k] and data[j] and k != j:
+                    if data[j][0] == data[k][0]: # same section
+                        for l in range(1, len(data[k])-1):
+                            if type(data[j][-1]) is not list:
+                                data[j].insert(len(data[j])-1, data[k][l])
+                            else:
+                                data[j].append(data[k][l])
+                        data[k] = []
+
+                        end_found = False
+                        for l in range(len(data[j])-1):
+                            if data[j][l] == 'end':
+                                data[j].pop(l)
+                                end_found = True
+
+                        if end_found and data[j][-1] != 'end':
+                                data[j].append('end')
+
+    data = [el for el in data if el]
+
+    for j in range(len(data)):
+        if type(data[j]) is list:
+            data[j] = collapse_parsed_data(data[j])
+
+    return data
+
+
+def magic_replace_end(data):
+    def rec(sub_data):
+        if type(sub_data) is list:
+            for lst in sub_data:
+                if type(lst) is list:
+                    if lst[-1] == 'end':
+                        lst[-1] = 'exit'
+                    else:
+                        rec(lst)
+
+    rec(data)
+
+    if data and type(data) is list:
+        for el in data:
+            if not is_exit_point(el[-1]):
+                if type(el) is list:
+                    sub_el = el
+                    while type(sub_el[-1]) is list:
+                        sub_el = sub_el[-1]
+                    if sub_el[-1] != 'end':
+                        sub_el[-1] = 'end'
+
+    return data
 
 
 def button1_clicked(lAS, uB):
@@ -363,7 +619,7 @@ def button1_clicked(lAS, uB):
     configureBorderProtocol(lAS, uB) #implement the border protocols between all the connectes AS
     configurePEiBGP(lAS)
 
-    #compareOldFiles(lAS)
+    compareOldFiles(lAS)
 
     generateTextFiles(lAS) #generate writter config
     print("written")
