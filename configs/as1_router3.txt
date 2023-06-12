@@ -1,20 +1,21 @@
 end
 enable
 configure terminal
+ip bgp-community new-format
+ip cef
 router ospf 1
-mpls ldp autoconfig
 router-id 1.0.0.3
 exit
 mpls ip
 interface GigabitEthernet1/0
-ip address 1.0.1.10 255.255.255.248
+ip address 1.0.1.2 255.255.255.248
 ip ospf cost 10
 no shutdown
 ip ospf 1 area 0
 mpls ip
 exit
 interface FastEthernet0/0
-ip address 1.0.1.17 255.255.255.248
+ip address 1.0.2.1 255.255.255.248
 ip ospf cost 10
 no shutdown
 ip ospf 1 area 0
@@ -25,6 +26,8 @@ ip address 3.3.3.3 255.255.255.255
 no shutdown
 ip ospf 1 area 0 
 exit
+router ospf 1
+mpls ldp autoconfig
 router bgp 1
 neighbor 1.1.1.1 remote-as 1
 neighbor 1.1.1.1 update-source Loopback0
@@ -40,12 +43,4 @@ address-family vpnv4
 neighbor 4.4.4.4 activate
 neighbor 4.4.4.4 send-community both
 neighbor 4.4.4.4 route-reflector-client
-exit-address-family
-router bgp 1
-neighbor 2.2.2.2 remote-as 1
-neighbor 2.2.2.2 update-source Loopback0
-address-family vpnv4
-neighbor 2.2.2.2 activate
-neighbor 2.2.2.2 send-community both
-neighbor 2.2.2.2 route-reflector-client
 exit-address-family

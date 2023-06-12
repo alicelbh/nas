@@ -1,13 +1,14 @@
 end
 enable
 configure terminal
+ip bgp-community new-format
+ip cef
 router ospf 1
-mpls ldp autoconfig
 router-id 1.0.0.1
 exit
 mpls ip
 interface FastEthernet0/0
-ip address 1.0.1.1 255.255.255.248
+ip address 1.0.0.1 255.255.255.248
 ip ospf cost 10
 no shutdown
 ip ospf 1 area 0
@@ -18,7 +19,10 @@ ip address 1.1.1.1 255.255.255.255
 no shutdown
 ip ospf 1 area 0 
 exit
+router ospf 1
+mpls ldp autoconfig
 router bgp 1
+bgp log-neighbor-changes
 neighbor 3.3.3.3 remote-as 1
 neighbor 3.3.3.3 update-source Loopback0
 address-family vpnv4
@@ -32,17 +36,20 @@ vrf definition Client_A
 rd 111:00
 route-target export 100:100
 route-target import 100:100
+address-family ipv4
+exit-address-family
 route-target import 100:110
 exit
-interface GigabitEthernet2/0
+interface GigabitEthernet1/0
 no shutdown
 vrf forwarding Client_A
-ip address 253.0.0.1 255.255.255.0
+ip address 200.0.0.1 255.255.255.0
 exit
 router bgp 1
 address-family ipv4 vrf Client_A
-neighbor 253.0.0.2 remote-as 11
-neighbor 253.0.0.2 activate
+neighbor 200.0.0.2 remote-as 11
+neighbor 200.0.0.2 activate
+neighbor 200.0.0.2 send-community
 exit-address-family
 end
 configure terminal
@@ -53,7 +60,7 @@ exit
 router bgp 1
 bgp always-compare-med
 address-family ipv4 vrf Client_A
-neighbor 253.0.0.2 route-map Client_A_out out
+neighbor 200.0.0.2 route-map Client_A_out out
 end
 end
 configure terminal
@@ -61,17 +68,20 @@ vrf definition Client_B
 rd 111:01
 route-target export 100:110
 route-target import 100:110
+address-family ipv4
+exit-address-family
 route-target import 100:100
 exit
-interface GigabitEthernet3/0
+interface GigabitEthernet2/0
 no shutdown
 vrf forwarding Client_B
-ip address 253.0.1.1 255.255.255.0
+ip address 201.0.0.1 255.255.255.0
 exit
 router bgp 1
 address-family ipv4 vrf Client_B
-neighbor 253.0.1.2 remote-as 16
-neighbor 253.0.1.2 activate
+neighbor 201.0.0.2 remote-as 16
+neighbor 201.0.0.2 activate
+neighbor 201.0.0.2 send-community
 exit-address-family
 end
 configure terminal
@@ -82,7 +92,7 @@ exit
 router bgp 1
 bgp always-compare-med
 address-family ipv4 vrf Client_B
-neighbor 253.0.1.2 route-map Client_B_out out
+neighbor 201.0.0.2 route-map Client_B_out out
 end
 end
 clear ip bgp *
