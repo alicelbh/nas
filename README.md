@@ -10,8 +10,11 @@ Phase 3 : OK
 Phase 4 : 
 
 - Manageability (config ghosting) OK
+        mostly done, there might be unforeseen undesirable behaviours. If the router is turned off or reloaded you must manually remove the configuration files in "./old_configs".
 - Internet services OK
+        PE routers can now also handle standard internet, meaning they don't necessarily have vrfs. The adjAS matrix handles the border router connections.
 - Ingress TE multi-connected CE routers OK
+        each PE associates a MED and a BGP community to the routes it shares with its client, allowing the latter to modify those and perform TE based on them
 
 
 **2) JSON File**
@@ -22,7 +25,7 @@ The inside matrix is an adjacency matrix where each cell holds the following inf
 
 The port list is used for Telnet to specify where to send the configs.
 
-The PE list is organized as follows : [[router_1, [VRF1], [VRF2], ...], [router_2, [VRF1], [VRF2], ...]]. Each PE can have several VRFs.
+The PE list is organized as follows : [[router_1, [VRF1], [VRF2], ...], [router_2, [VRF1], [VRF2], ...]]. Each PE can have several VRFs **or none** (Internet Services, necessary in order to open BGP sesson with Route Reflector).
 
 The VRFs are defined as : [interface_name, vrf_name, route_target, net_ip@, ce_ip@, client_as_number, med_client]
 
