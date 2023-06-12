@@ -1,9 +1,0 @@
-configure terminal
-interface GigabitEthernet1/0
-no shutdown
-ip address 20.20.20.1 255.255.255.252
-exit
-interface loopback0
-ip address 2.0.0.1 255.255.255.255
-no shutdown
-end
