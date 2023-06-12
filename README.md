@@ -15,6 +15,8 @@ Phase 4 :
         PE routers can now also handle standard internet, meaning they don't necessarily have vrfs. The adjAS matrix handles the border router connections.
 - Ingress TE multi-connected CE routers OK
         each PE associates a MED and a BGP community to the routes it shares with its client, allowing the latter to modify those and perform TE based on them
+- Site sharing OK
+        route target imports are handled by the "Clients" structure. The self import is always implicit, other imports can be made to connect different VPN clients.
 
 
 **2) JSON File**
